@@ -1,0 +1,421 @@
+{
+  "folders": [
+    {
+      "name": "🏠 BrainHome Root",
+      "path": "."
+    },
+    {
+      "name": "⚙️ Infrastruktur",
+      "path": "./architektur"
+    },
+    {
+      "name": "🟢 HA Master",
+      "path": "./HomeAssistant/haos"
+    },
+    {
+      "name": "🟡 HA EG",
+      "path": "./HomeAssistant/haos-eg"
+    },
+    {
+      "name": "🔵 HA OG",
+      "path": "./HomeAssistant/haos-og"
+    },
+    {
+      "name": "🟠 HA UG",
+      "path": "./HomeAssistant/haos-ug"
+    },
+    {
+      "name": "🟣 HA GA",
+      "path": "./HomeAssistant/haos-ga"
+    },
+    {
+      "name": "🏠 HomeAssistant",
+      "path": "./HomeAssistant"
+    },
+    {
+      "name": "🌐 Caddy",
+      "path": "./caddy"
+    },
+    {
+      "name": "🔒 Pi-hole",
+      "path": "./pihole"
+    },
+    {
+      "name": "🔑 Keycloak",
+      "path": "./keycloak"
+    },
+    {
+      "name": "📷 AI on the Edge",
+      "path": "./AI-on-the-edge"
+    },
+    {
+      "name": "🚪 BrainPi Eingang",
+      "path": "./brainPiEingang"
+    },
+    {
+      "name": "📦 Appstore System",
+      "path": "./appstore-system"
+    },
+    {
+      "name": "🌐 OpenWrt",
+      "path": "./openwrt-repeater-setup"
+    },
+    {
+      "name": "🛠️ PXE Boot",
+      "path": "./pxe-boot"
+    },
+    {
+      "name": "📡 Fritzbox",
+      "path": "./fritzbox"
+    },
+    {
+      "name": "☀️ Autarkie",
+      "path": "./autarkie"
+    },
+    {
+      "name": "📊 Grafana",
+      "path": "./grafana"
+    },
+    {
+      "name": "💻 Workstation",
+      "path": "./workstation"
+    },
+    {
+      "name": "🌐 Webserver",
+      "path": "./webserver"
+    }
+  ],
+  "settings": {
+    // Home Assistant Config Helper Settings (MASTER)
+    "homeassistant.longLivedAccessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJlOGI4MDFiMDkzOWM0YzVhYTI1ODgxYWZjYWQ0NTU0ZCIsImlhdCI6MTc3MzM5MzM3MSwiZXhwIjoyMDg4NzUzMzcxfQ.ZNs_7Ej0HGbNy8wyofpn7PxzkjlxftMlweVIWw6KG04",
+    "homeassistant.hostUrl": "http://192.168.188.142:8123",
+    "homeassistant.ignoreCertificates": false,
+
+    // YAML Settings für Home Assistant
+    "yaml.format.enable": true,
+    "yaml.validate": true,
+    "yaml.hover": true,
+    "yaml.completion": true,
+    "yaml.schemas": {
+      "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/homeassistant.json": [
+        "**/haos/**/*.yaml",
+        "**/haos-eg/**/*.yaml",
+        "**/haos-og/**/*.yaml",
+        "**/haos-ug/**/*.yaml",
+        "**/HomeAssistant/haos/**/*.yaml"
+      ]
+    },
+
+    // Editor
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.detectIndentation": true,
+    "editor.formatOnSave": false,
+
+    // Git
+    "git.enableSmartCommit": true,
+    "git.autofetch": false,
+
+    // Terminal
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.cwd": "/home",
+    "terminal.integrated.scrollback": 10000,
+
+    // File Watcher Exclusions (performance: keine schweren Verzeichnisse beobachten)
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/node_modules/**": true,
+      "**/build/**": true,
+      "**/.gradle/**": true,
+      "**/dist/**": true,
+      "**/logs/**": true,
+      "**/.cache/**": true,
+      "**/deps/**": true,
+      "**/backups/**": true
+    },
+
+    // Search Exclusions
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/logs": true,
+      "**/*.log": true,
+      "**/backups": true,
+      "**/deps": true,
+      "**/build": true
+    },
+    "files.associations": {
+      "*.yaml": "home-assistant",
+      "compose.yml": "yaml",
+      "compose.yaml": "yaml",
+      "compose.*.yml": "yaml",
+      "compose.*.yaml": "yaml",
+      "docker-compose.yml": "yaml",
+      "docker-compose.yaml": "yaml",
+      "docker-compose.*.yml": "yaml",
+      "docker-compose.*.yaml": "yaml",
+      "esphome/**/*.yml": "esphome",
+      "esphome/**/*.yaml": "esphome"
+    },
+    "chat.tools.terminal.autoApprove": {
+      "/^python3 /dev/stdin <<'EOF'\nimport json\nwith open\\('/home/HomeAssistant/haos/\\.storage/lovelace_dashboards'\\) as f:\n    d = json\\.load\\(f\\)\nitems = d\\.get\\('data',\\{\\}\\)\\.get\\('items',\\[\\]\\)\nfor item in items:\n    print\\(item\\.get\\('url_path','\\?'\\), '\\|', item\\.get\\('title','\\?'\\), '\\|', item\\.get\\('mode','\\?'\\)\\)\nEOF$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^python3 /dev/stdin <<'EOF'\nimport json, re\n\n# Read EG z2m database to find actual entity IDs\nwith open\\('/home/HomeAssistant/haos-eg/zigbee2mqtt/configuration\\.yaml'\\) as f:\n    raw = f\\.read\\(\\)\n\n# Find all friendly_names\nnames = re\\.findall\\(r'friendly_name:\\\\s\\*\\(\\[\\^\\\\n\\]\\+\\)', raw\\)\nprint\\(\"Z2M EG friendly_names:\"\\)\nfor n in names:\n    n = n\\.strip\\(\\)\n    # HA entity_id derivation: lowercase, replace space with _, remove special chars\n    entity_base = n\\.lower\\(\\)\\.replace\\('ü','u'\\)\\.replace\\('ä','a'\\)\\.replace\\('ö','o'\\)\\.replace\\('-','_'\\)\\.replace\\(' ','_'\\)\n    print\\(f\"  \\{n\\}  →  \\{entity_base\\}\"\\)\nEOF$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^python3 /dev/stdin <<'EOF'\nimport yaml, sys\n\nfiles = \\[\n    '/home/HomeAssistant/haos/templates/kueche\\.yaml',\n    '/home/HomeAssistant/haos/templates/wohnzimmer\\.yaml',\n    '/home/HomeAssistant/haos/templates/schlafzimmer\\.yaml',\n    '/home/HomeAssistant/haos/scripts\\.yaml',\n\\]\nfor f in files:\n    try:\n        with open\\(f\\) as fh:\n            yaml\\.safe_load\\(fh\\)\n        print\\(f\"OK: \\{f\\.split\\('/'\\)\\[-1\\]\\}\"\\)\n    except yaml\\.YAMLError as e:\n        print\\(f\"ERROR \\{f\\.split\\('/'\\)\\[-1\\]\\}: \\{e\\}\"\\)\nEOF$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^pct reboot 112 && echo \"Rebooting\\.\\.\\.\" && sleep 35 && timeout 10 pct exec 112 -- echo \"CT112 alive\" && echo \"CT112 back\"$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^/home/webserver/tools/language-consistency-audit\\.sh \\| tail -n 5$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^python3 - << 'EOF'\nimport json\nfor p in \\['/home/webserver/frontend/src/assets/translation/de\\.json','/home/webserver/frontend/src/assets/translation/en\\.json'\\]:\n    with open\\(p\\) as f:\n        json\\.load\\(f\\)\nprint\\('ok'\\)\nEOF$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^cd /home/webserver && \\./scripts/audit-property-naming\\.sh$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "tools/devctl.sh": true,
+      "/^cd /home/webserver && /home/webserver/tools/language-consistency-audit\\.sh 2>&1 \\| grep hits$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/home/webserver/tools/language-consistency-audit.sh": true,
+      "/^jar tf /home/webserver/docker/app/deployments/quarkus-app/lib/main/de\\.vce\\.core\\.core-3\\.2\\.9-2\\.jar 2>/dev/null \\| grep -i \"parent\\\\\\|masterdata\\\\\\|enum\\\\\\|type\" \\| head -20$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^jar tf /home/webserver/docker/app/deployments/quarkus-app/lib/main/de\\.vce\\.core\\.web-3\\.2\\.9-2\\.jar 2>/dev/null \\| grep -i \"parent\\\\\\|management\\\\\\|masterdata\" \\| head -20$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "mkdir": true,
+      "jar": true,
+      "javap": true,
+      "seq": true,
+      "break": true,
+      "/^bash -x /home/webserver/tools/language-consistency-audit\\.sh$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "git add": true,
+      "git commit": true,
+      "/^bash /home/webserver/tools/agent-tickets\\.sh --help$/": {
+        "approve": true,
+        "matchCommandLine": true
+      },
+      "/^bash /home/webserver/tools/agent-tickets\\.sh add \"DB-Migration: Remaining property schema rename groups\" \"Continue after expense module: tenant, maintenance, income, insurance, document; each as isolated migration \\+ mapping cleanup \\+ validation\\.\"$/": {
+        "approve": true,
+        "matchCommandLine": true
+      }
+    },
+    "java.configuration.updateBuildConfiguration": "interactive"
+  },
+  "extensions": {
+    "recommendations": [
+      "keesschollaart.vscode-home-assistant",
+      "redhat.vscode-yaml",
+      "esbenp.prettier-vscode",
+      "ms-python.python",
+      "wholroyd.jinja",
+      "ms-vscode.vscode-json"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      // ─── Home Assistant Sync ──────────────────────────────────────────────
+      {
+        "label": "⬇️ Pull ALL HA Configs",
+        "type": "shell",
+        "command": "K=/home/haos-configs/.ssh/vscode_rsa; declare -A HOSTS=([MASTER]=192.168.188.142 [EG]=192.168.188.148 [OG]=192.168.188.143 [UG]=192.168.188.152); declare -A DIRS=([MASTER]=/home/HomeAssistant/haos [EG]=/home/HomeAssistant/haos-eg [OG]=/home/HomeAssistant/haos-og [UG]=/home/HomeAssistant/haos-ug); for N in MASTER EG OG UG; do echo \"⬇️  $N...\"; rsync -az --delete -e \"ssh -i $K -o StrictHostKeyChecking=no\" --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@${HOSTS[$N]}:/config/ ${DIRS[$N]}/ && echo \"✅ $N OK\" || echo \"❌ $N FEHLER\"; done; echo '🎉 Fertig!'",
+        "group": { "kind": "build", "isDefault": true },
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬇️ Pull MASTER",
+        "type": "shell",
+        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.142:/config/ /home/HomeAssistant/haos/ && echo '✅ MASTER pulled'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬇️ Pull EG",
+        "type": "shell",
+        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.148:/config/ /home/HomeAssistant/haos-eg/ && echo '✅ EG pulled'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬇️ Pull OG",
+        "type": "shell",
+        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.143:/config/ /home/HomeAssistant/haos-og/ && echo '✅ OG pulled'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬇️ Pull UG",
+        "type": "shell",
+        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.152:/config/ /home/HomeAssistant/haos-ug/ && echo '✅ UG pulled'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬆️ Push MASTER → HA",
+        "type": "shell",
+        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos/ root@192.168.188.142:/config/ && ssh ha-master 'ha core check && ha core restart' && echo '✅ MASTER deployed'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬆️ Push EG → HA",
+        "type": "shell",
+        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-eg/ root@192.168.188.148:/config/ && ssh ha-eg 'ha core restart' && echo '✅ EG deployed'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬆️ Push OG → HA",
+        "type": "shell",
+        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-og/ root@192.168.188.143:/config/ && ssh ha-og 'ha core restart' && echo '✅ OG deployed'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⬆️ Push UG → HA",
+        "type": "shell",
+        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-ug/ root@192.168.188.152:/config/ && ssh ha-ug 'ha core restart' && echo '✅ UG deployed'",
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      // ─── HA Terminals ─────────────────────────────────────────────────────
+      {
+        "label": "🔌 Terminal → MASTER",
+        "type": "shell",
+        "command": "ssh ha-master",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔌 Terminal → EG",
+        "type": "shell",
+        "command": "ssh ha-eg",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔌 Terminal → OG",
+        "type": "shell",
+        "command": "ssh ha-og",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔌 Terminal → UG",
+        "type": "shell",
+        "command": "ssh ha-ug",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      // ─── Infra Terminals ──────────────────────────────────────────────────
+      {
+        "label": "🖥️ Terminal → proxmox-ug",
+        "type": "shell",
+        "command": "ssh proxmox-ug",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🖥️ Terminal → proxmox-eg",
+        "type": "shell",
+        "command": "ssh proxmox-eg",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔒 Terminal → pihole",
+        "type": "shell",
+        "command": "ssh pihole",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🌐 Terminal → caddy",
+        "type": "shell",
+        "command": "ssh caddy",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔑 Terminal → keycloak",
+        "type": "shell",
+        "command": "ssh keycloak",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      // ─── Status & Tests ───────────────────────────────────────────────────
+      {
+        "label": "📊 HA Status alle Instanzen",
+        "type": "shell",
+        "command": "for H in ha-master ha-eg ha-og ha-ug; do echo \"=== $H ===\"; ssh $H 'ha core info 2>/dev/null | grep -E \"version\"' 2>/dev/null || echo 'nicht erreichbar'; done",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧪 Test SSH Connections (HA)",
+        "type": "shell",
+        "command": "for H in ha-master ha-eg ha-og ha-ug; do ssh $H 'echo \"✅ OK: $(hostname)\"' 2>/dev/null || echo \"❌ $H nicht erreichbar\"; done",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧪 Test SSH Connections (Infra)",
+        "type": "shell",
+        "command": "for H in proxmox-eg pihole pihole2 caddy keycloak; do ssh -o ConnectTimeout=5 $H 'echo \"✅ OK: $(hostname)\"' 2>/dev/null || echo \"❌ $H nicht erreichbar\"; done",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📊 Infra Status",
+        "type": "shell",
+        "command": "echo '=== Proxmox EG ===' && ssh proxmox-eg 'uptime; df -h / | tail -1' 2>/dev/null; echo '=== Proxmox UG ===' && uptime; df -h / | tail -1; echo '=== Pi-hole ===' && ssh pihole 'pihole status 2>/dev/null | head -3' 2>/dev/null; echo '=== Caddy ===' && ssh caddy 'systemctl is-active caddy' 2>/dev/null",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

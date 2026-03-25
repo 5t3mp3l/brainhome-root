@@ -1,0 +1,9 @@
+# Ignore everything by default
+*
+
+# Track only specific root-level files
+!.gitignore
+!BrainHome.code-workspace
+!INFRASTRUCTURE.md
+!ERLERNTES-WISSEN.md
+!TODO.md

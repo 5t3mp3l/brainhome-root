@@ -14,6 +14,10 @@ workstation/*
 !workstation/tools/
 workstation/tools/*
 !workstation/tools/cluster-inventory.sh
+!workstation/scripts/
+workstation/scripts/*
+!workstation/scripts/remmina-setup-ct113.sh
 !workstation/docs/
 workstation/docs/*
 !workstation/docs/ssh-config.md
+!workstation/docs/remmina-client-setup.md

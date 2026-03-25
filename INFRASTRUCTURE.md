@@ -32,7 +32,7 @@
 | ha-ga | 192.168.188.191 | VM | VM115 | proxmox-ug | Home Assistant GA | `ssh ha-ga` |
 | brainhome-dev | 192.168.188.112 | LXC | CT112 | proxmox-workstation | Webserver Dev (Quarkus + Angular) | `ssh brainhome-dev` |
 | brainhome-prod | 192.168.188.116 | LXC | CT116 | proxmox-ug | Webserver Prod | `ssh brainhome-prod` |
-| brainhome-workstation | 192.168.188.193 | VM | VM113 | proxmox-workstation | Workstation VM (Ubuntu) | `ssh brainhome-workstation` |
+| brainhome-workstation | 192.168.188.193 | VM | VM113 | proxmox-workstation | VS Code Remote + XRDP Workstation (Ubuntu 24.04 GNOME) | `ssh brainhome-workstation` |
 | pxe-stack | 192.168.188.250 | LXC | CT130 | proxmox-ug | PXE DHCP/TFTP + iPXE HTTP | `ssh pxe-stack` |
 | nextcloud | 192.168.188.121 | VM | VM121 | proxmox-ug | Nextcloud | `ssh nextcloud` |
 | brainpi | 192.168.188.155 | Raspberry Pi | — | — | Türklingel/Kamera | `ssh brain@192.168.188.155` |
@@ -89,7 +89,11 @@ ssh pxe-stack            # root@192.168.188.250 (pihole_key)
 # Webserver
 ssh brainhome-dev        # root@192.168.188.112 (pihole_key)
 ssh brainhome-prod       # root@192.168.188.116 (pihole_key)
-ssh brainhome-workstation # brain@192.168.188.193 (pihole_key)
+ssh brainhome-workstation # brain@192.168.188.193 (id_ed25519) — VS Code Remote Host, XRDP :3389
+
+# Endgeräte (Clients)
+ssh eg-stefan-lp         # stefan@192.168.188.58 — Stefan's Laptop (RDP → CT113)
+ssh ug-buero-tc          # brain@192.168.188.148 — Thin Client UG/Büro (RDP → CT113)
 
 # Home Assistant
 ssh ha-master            # root@192.168.188.142 (vscode_rsa)

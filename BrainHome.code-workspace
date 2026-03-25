@@ -82,7 +82,7 @@
     },
     {
       "name": "🌐 Webserver",
-      "path": "./webserver"
+      "path": "../webserver"
     }
   ],
   "settings": {
@@ -118,7 +118,7 @@
 
     // Terminal
     "terminal.integrated.defaultProfile.linux": "bash",
-    "terminal.integrated.cwd": "/home",
+      "terminal.integrated.cwd": "/home/brain/webserver",
     "terminal.integrated.scrollback": 10000,
 
     // File Watcher Exclusions (performance: keine schweren Verzeichnisse beobachten)
@@ -246,7 +246,7 @@
         "approve": true,
         "matchCommandLine": true
       },
-      "/^/home/webserver/tools/language-consistency-audit\\.sh \\| tail -n 5$/": {
+      "/^bash /home/brain/webserver/tools/language-consistency-audit\.sh(.*)?$/": {
         "approve": true,
         "matchCommandLine": true
       },
@@ -254,16 +254,13 @@
         "approve": true,
         "matchCommandLine": true
       },
-      "/^cd /home/webserver && \\./scripts/audit-property-naming\\.sh$/": {
+      "/^cd /home/brain/webserver && .*\.sh.*$/": {
         "approve": true,
         "matchCommandLine": true
       },
       "tools/devctl.sh": true,
-      "/^cd /home/webserver && /home/webserver/tools/language-consistency-audit\\.sh 2>&1 \\| grep hits$/": {
-        "approve": true,
-        "matchCommandLine": true
-      },
-      "/home/webserver/tools/language-consistency-audit.sh": true,
+      "bash /home/brain/webserver/tools/devctl.sh": true,
+      "/home/brain/webserver/tools/language-consistency-audit.sh": true,
       "/^jar tf /home/webserver/docker/app/deployments/quarkus-app/lib/main/de\\.vce\\.core\\.core-3\\.2\\.9-2\\.jar 2>/dev/null \\| grep -i \"parent\\\\\\|masterdata\\\\\\|enum\\\\\\|type\" \\| head -20$/": {
         "approve": true,
         "matchCommandLine": true
@@ -415,6 +412,14 @@
       },
       // ─── Infra Terminals ──────────────────────────────────────────────────
       {
+        "label": "🖥️ Terminal → proxmox-workstation",
+        "type": "shell",
+        "command": "ssh proxmox-workstation",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      {
         "label": "🖥️ Terminal → proxmox-ug",
         "type": "shell",
         "command": "ssh proxmox-ug",
@@ -452,6 +457,79 @@
         "command": "ssh keycloak",
         "group": "test",
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "new" },
+        "problemMatcher": []
+      },
+      // ─── BrainHome Webserver (devctl) ────────────────────────────────────
+      {
+        "label": "🔨 BrainHome: Build Backend",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh build-backend",
+        "group": { "kind": "build", "isDefault": false },
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔨 BrainHome: Build Frontend",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh build-frontend",
+        "group": { "kind": "build", "isDefault": false },
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔨 BrainHome: Build All",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh build-all",
+        "group": { "kind": "build", "isDefault": true },
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "▶️ BrainHome: Start Backend Dev",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh start-backend",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "▶️ BrainHome: Start Frontend Dev",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh start-frontend",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⏹️ BrainHome: Stop All",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh stop-all",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📊 BrainHome: Status",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh status",
+        "group": "test",
+        "presentation": { "echo": false, "reveal": "always", "focus": true, "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📋 BrainHome: Logs All",
+        "type": "shell",
+        "command": "bash /home/brain/webserver/tools/devctl.sh logs all",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔑 SSH Setup: Deploy Key to proxmox-workstation",
+        "type": "shell",
+        "command": "ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.247 && ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.248 && echo '✅ Keys deployed'",
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []
       },
       // ─── Status & Tests ───────────────────────────────────────────────────

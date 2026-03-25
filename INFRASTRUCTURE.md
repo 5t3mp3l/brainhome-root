@@ -57,9 +57,14 @@
 
 ## 🔑 SSH Konfiguration
 
-**SSH Key (Infra)**: `/root/.ssh/pihole_key` (ed25519)  
+**SSH Key (Infra)**: `/root/.ssh/pihole_key` (ed25519) — auf allen Proxmox-Nodes  
 **SSH Key (HA)**: `/home/haos-configs/.ssh/vscode_rsa` (ed25519)  
-**SSH Config**: `/root/.ssh/config` (auf beiden Proxmox-Nodes identisch)
+**SSH Key (Workstation)**: `/home/brain/.ssh/brainhome_ws` (ed25519) — auf brainhome-workstation VM  
+**SSH Config**: `/root/.ssh/config` (auf Proxmox-Nodes identisch), `/home/brain/.ssh/config` (auf Workstation-VM)
+
+> **brainhome_ws Pubkey**:  
+> `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1PXQ2VV/mpxOqu0XBurzXcnyzfU87RIx1kiQQTZ9hh brain@brainhome-workstation`  
+> Muss in `root@proxmox-workstation:~/.ssh/authorized_keys` und `root@proxmox-ug:~/.ssh/authorized_keys` eingetragen sein.
 
 Alle Hosts sind in `/root/.ssh/config` konfiguriert (versioniert in `/home/workstation/`):  
 
@@ -89,7 +94,7 @@ ssh pxe-stack            # root@192.168.188.250 (pihole_key)
 # Webserver
 ssh brainhome-dev        # root@192.168.188.112 (pihole_key)
 ssh brainhome-prod       # root@192.168.188.116 (pihole_key)
-ssh brainhome-workstation # brain@192.168.188.193 (id_ed25519) — VS Code Remote Host, XRDP :3389
+ssh brainhome-workstation # brain@192.168.188.193 (id_ed25519/brainhome_ws) — VS Code Remote Host, XRDP :3389
 
 # Endgeräte (Clients)
 ssh eg-stefan-lp         # stefan@192.168.188.58 — Stefan's Laptop (RDP → CT113)

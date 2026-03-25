@@ -1,12 +1,69 @@
-# SSH Config — proxmox-master (`/root/.ssh/config`)
+# SSH Config — proxmox-master (`/root/.ssh/config`) + brainhome-workstation (`~/.ssh/config`)
 
 > Stand: 25. März 2026  
-> Datei liegt auf dem proxmox-master unter `/root/.ssh/config`.  
+> `proxmox-root.conf` liegt auf dem proxmox-master unter `/root/.ssh/config`.  
+> `workstation.conf` liegt auf der brainhome-workstation VM unter `/home/brain/.ssh/config`.  
 > **Keys** sind NICHT versioniert (nur die Config-Struktur).
 
 ---
 
-## Hosts
+## brainhome-workstation `~/.ssh/config`
+
+> Ermöglicht `devctl.sh` direkt von VS Code aus (SSH → Proxmox-Node → pct exec CT112/CT116).
+
+```ssh-config
+# Proxmox-Dev (Master)
+Host proxmox proxmox-dev 192.168.188.254
+  HostName 192.168.188.254
+  User root
+  IdentityFile ~/.ssh/brainhome_ws
+  ControlMaster auto
+  ControlPersist 10m
+  ControlPath ~/.ssh/cm/%r@%h:%p
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+  ConnectTimeout 10
+
+# Proxmox Workstation (CT112 brainhome-dev)
+Host proxmox-workstation proxmox-ws 192.168.188.247
+  HostName 192.168.188.247
+  User root
+  IdentityFile ~/.ssh/brainhome_ws
+  ControlMaster auto
+  ControlPersist 10m
+  ControlPath ~/.ssh/cm/%r@%h:%p
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+  ConnectTimeout 10
+
+# Proxmox UG (CT116 brainhome-prod)
+Host proxmox-ug 192.168.188.248
+  HostName 192.168.188.248
+  User root
+  IdentityFile ~/.ssh/brainhome_ws
+  ControlMaster auto
+  ControlPersist 10m
+  ControlPath ~/.ssh/cm/%r@%h:%p
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+  ConnectTimeout 10
+```
+
+**Key**: `~/.ssh/brainhome_ws` (ed25519) — generiert auf brainhome-workstation  
+**Pubkey**: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1PXQ2VV/mpxOqu0XBurzXcnyzfU87RIx1kiQQTZ9hh brain@brainhome-workstation`
+
+Deploy (einmalig mit Passwort):
+```bash
+ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.247   # proxmox-workstation
+ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.248   # proxmox-ug
+```
+
+---
+
+## proxmox-master `/root/.ssh/config`
 
 ```ssh-config
 # GitHub SSH Keys für verschiedene Repositories

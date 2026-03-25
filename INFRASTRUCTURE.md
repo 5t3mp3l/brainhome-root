@@ -1,6 +1,6 @@
 # 🏠 BrainHome Infrastructure — Übersicht
 
-**Stand**: 19. März 2026  
+**Stand**: 25. März 2026  
 **Subnetz**: `192.168.188.0/24`
 
 **Lessons Learned (aktuell)**: `/home/ERLERNTES-WISSEN.md`
@@ -9,37 +9,49 @@
 
 ## 🖥️ Hosts & IP-Adressen
 
-| Host | IP | Typ | Dienst | SSH |
-|------|----|-----|--------|-----|
-| proxmox-dev | 192.168.188.254 | Proxmox Bare Metal | Hypervisor DEV (vormals UG) | `ssh proxmox-dev` |
-| proxmox-ug | 192.168.188.248 | Proxmox Bare Metal | Hypervisor UG | `ssh proxmox-ug` |
-| proxmox-eg | 192.168.188.253 | Proxmox Bare Metal | Hypervisor EG | `ssh proxmox-eg` |
-| pihole | 192.168.188.251 | LXC CT100 (proxmox-ug) | Pi-hole v6.4 + DNS | `ssh pihole` |
-| proxmox-og | 192.168.188.252 | Proxmox Bare Metal | Hypervisor OG | `ssh proxmox-og` |
-| pihole-og | 192.168.188.249 | LXC CT111 (proxmox-og) | Pi-hole v6.4 (Sync) | `ssh pihole-og` |
-| caddy-1 | 192.168.188.202 | LXC CT110 (proxmox-eg) | Reverse Proxy MASTER | `ssh caddy-1` |
-| caddy-2 | 192.168.188.201 | LXC CT120 (proxmox-og) | Reverse Proxy BACKUP | `ssh caddy-og` |
-| caddy VIP | 192.168.188.200 | Keepalived floating | *.brain DNS-Ziel | `ssh caddy` |
-| keycloak | 192.168.188.107 | VM 107 (proxmox-dev) | Keycloak SSO | `ssh keycloak` |
-| monitoring | 192.168.188.108 | VM 108 (proxmox-eg) | Grafana + Prometheus + Loki | `ssh monitoring` |
-| ha-master | 192.168.188.142 | VM (proxmox-dev) | Home Assistant Master | `ssh ha-master` |
-| ha-ug | 192.168.188.152 | VM (proxmox-dev) | Home Assistant UG | `ssh ha-ug` |
-| ha-eg | 192.168.188.194 | VM (proxmox-eg) | Home Assistant EG | `ssh ha-eg` |
-| ha-og | 192.168.188.143 | VM (proxmox-eg) | Home Assistant OG | `ssh ha-og` |
-| ha-ga | 192.168.188.191 | VM 115 (proxmox-ug) | Home Assistant GA | `ssh ha-ga` |
-| brainpi | 192.168.188.155 | Raspberry Pi | Türklingel/Kamera | `ssh brain@192.168.188.155` |
-| ap-eg | 192.168.188.70 | OpenWrt AP | WiFi EG | `ssh openwrt-eg` |
-| ap-og | 192.168.188.71 | OpenWrt AP | WiFi OG | `ssh openwrt-og` |
-| nas | 192.168.188.42 | NAS | Netzwerkspeicher | — |
-| pxe-stack | 192.168.188.250 | LXC CT130 (proxmox-dev) | PXE DHCP/TFTP + iPXE HTTP | `ssh proxmox-dev` + `pct enter 130` |
-| fritzbox | 192.168.188.1 | Router | Default Gateway | http://fritzbox.brain |
+| Host | IP | Typ | CT/VM-ID | Node | Dienst | SSH |
+|------|----|-----|----------|------|--------|-----|
+| proxmox-dev | 192.168.188.254 | Proxmox Bare Metal | — | — | Hypervisor (Master/Dev) | `ssh proxmox-dev` |
+| proxmox-workstation | 192.168.188.247 | Proxmox Bare Metal | — | — | Hypervisor Workstation | `ssh proxmox-workstation` |
+| proxmox-ug | 192.168.188.248 | Proxmox Bare Metal | — | — | Hypervisor UG | `ssh proxmox-ug` |
+| proxmox-eg | 192.168.188.253 | Proxmox Bare Metal | — | — | Hypervisor EG | `ssh proxmox-eg` |
+| proxmox-og | 192.168.188.252 | Proxmox Bare Metal | — | — | Hypervisor OG | `ssh proxmox-og` |
+| pihole | 192.168.188.251 | LXC | CT100 | proxmox-ug | Pi-hole v6 + DNS (master) | `ssh pihole` |
+| pihole-og | 192.168.188.249 | LXC | CT111 | proxmox-og | Pi-hole (OG, Sync) | `ssh pihole-og` |
+| pihole-eg | 192.168.188.245 | LXC | CT114 | proxmox-eg | Pi-hole (EG, Sync) | `ssh pihole-eg` |
+| caddy VIP | 192.168.188.200 | Keepalived floating | — | — | Reverse Proxy Einstiegspunkt | `ssh caddy` |
+| caddy-backup | 192.168.188.202 | LXC | CT110 | proxmox-ug | Reverse Proxy MASTER | `ssh caddy-backup` |
+| caddy-og | 192.168.188.201 | LXC | CT120 | proxmox-og | Reverse Proxy BACKUP (OG) | `ssh caddy-og` |
+| caddy-eg | 192.168.188.203 | LXC | CT117 | proxmox-eg | Reverse Proxy BACKUP (EG) | `ssh caddy-eg` |
+| keycloak | 192.168.188.107 | VM | VM107 | proxmox-ug | Keycloak SSO | `ssh keycloak` |
+| monitoring | 192.168.188.108 | VM | VM219 | proxmox-workstation | Grafana + Prometheus + Loki | `ssh monitoring` |
+| ha-master | 192.168.188.142 | VM | VM101 | proxmox-workstation | Home Assistant Master | `ssh ha-master` |
+| ha-ug | 192.168.188.152 | VM | VM106 | proxmox-ug | Home Assistant UG | `ssh ha-ug` |
+| ha-eg | 192.168.188.194 | VM | VM102 | proxmox-eg | Home Assistant EG | `ssh ha-eg` |
+| ha-og | 192.168.188.143 | VM | VM103 | proxmox-og | Home Assistant OG | `ssh ha-og` |
+| ha-ga | 192.168.188.191 | VM | VM115 | proxmox-ug | Home Assistant GA | `ssh ha-ga` |
+| brainhome-dev | 192.168.188.112 | LXC | CT112 | proxmox-workstation | Webserver Dev (Quarkus + Angular) | `ssh brainhome-dev` |
+| brainhome-prod | 192.168.188.116 | LXC | CT116 | proxmox-ug | Webserver Prod | `ssh brainhome-prod` |
+| brainhome-workstation | 192.168.188.193 | VM | VM113 | proxmox-workstation | Workstation VM (Ubuntu) | `ssh brainhome-workstation` |
+| pxe-stack | 192.168.188.250 | LXC | CT130 | proxmox-ug | PXE DHCP/TFTP + iPXE HTTP | `ssh pxe-stack` |
+| nextcloud | 192.168.188.121 | VM | VM121 | proxmox-ug | Nextcloud | `ssh nextcloud` |
+| brainpi | 192.168.188.155 | Raspberry Pi | — | — | Türklingel/Kamera | `ssh brain@192.168.188.155` |
+| nas | 192.168.188.42 | NAS | — | — | Netzwerkspeicher | `ssh nas` |
+| fritzbox | 192.168.188.1 | Router | — | — | Default Gateway | http://fritzbox.brain |
 
-## 🚧 Node-Rename & PXE Plan
+## �️ Proxmox Cluster
 
-- `proxmox-dev` ist der aktuelle Host auf `192.168.188.254` (ehemals `proxmox-ug`).
-- `proxmox-ug` ist als neuer Knoten aufgebaut und laeuft auf `192.168.188.248` (Ticket `3D9708`, Doku unter `/home/pxe-boot/`).
-- PXE-Stack laeuft in Phase 1 als dedizierter LXC/VM auf `proxmox-dev`; spaeterer Umzug auf neuen `proxmox-ug` ist eingeplant.
-- Monitoring (Grafana/Prometheus/Loki) laeuft aktuell auf `monitoring` VM108 auf `proxmox-eg` und muss waehrend PXE-Arbeiten stabil bleiben.
+| Node | IP | Rolle | Hosts (wichtig) |
+|------|----|-------|----------------|
+| proxmox-dev | 192.168.188.254 | Master / Dev Orchestrierung | `devctl.sh` wird hier ausgeführt |
+| proxmox-workstation | 192.168.188.247 | Workstation + Dev CTs | CT112 brainhome-dev, VM113 brainhome-workstation, VM101 ha-master, VM219 monitoring |
+| proxmox-ug | 192.168.188.248 | UG Services | CT100 pihole, CT110 caddy-backup, CT116 brainhome-prod, CT130 pxe-stack, VM106–115 |
+| proxmox-eg | 192.168.188.253 | EG Services | CT114 pihole-eg, CT117 caddy-eg, VM102 haos-eg, VM108 openwrt-eg |
+| proxmox-og | 192.168.188.252 | OG Services | CT111 pihole-og, CT120 caddy-og, VM103 haos-og, VM109 openwrt-og |
+
+> Cluster-Inventar live: `bash /home/workstation/tools/cluster-inventory.sh`  
+> Tags setzen: `pct set <VMID> --tags "brainhome;..."`  
+> devctl-target CT finden: `pvesh get /cluster/resources --type lxc | grep devctl-target`
 
 ---
 
@@ -49,27 +61,45 @@
 **SSH Key (HA)**: `/home/haos-configs/.ssh/vscode_rsa` (ed25519)  
 **SSH Config**: `/root/.ssh/config` (auf beiden Proxmox-Nodes identisch)
 
-Alle Hosts sind in `/root/.ssh/config` konfiguriert:
+Alle Hosts sind in `/root/.ssh/config` konfiguriert (versioniert in `/home/workstation/`):  
 
 ```bash
 # Proxmox-Nodes
-ssh proxmox-dev     # root@192.168.188.254 (pihole_key)
-ssh proxmox-ug      # root@192.168.188.248 (pihole_key)
-ssh proxmox-eg      # root@192.168.188.253 (pihole_key)
+ssh proxmox-dev          # root@192.168.188.254 (pihole_key)
+ssh proxmox-workstation  # root@192.168.188.247 (pihole_key) — alias: proxmox-ws
+ssh proxmox-ug           # root@192.168.188.248 (pihole_key)
+ssh proxmox-eg           # root@192.168.188.253 (pihole_key)
+ssh proxmox-og           # root@192.168.188.252 (pihole_key)
 
-# Dienste
-ssh pihole          # root@192.168.188.251 (pihole_key)
-ssh pihole-og       # root@192.168.188.249 (pihole_key)
-ssh caddy           # root@192.168.188.200 (pihole_key)
-ssh keycloak        # root@192.168.188.107 (pihole_key)
-ssh monitoring      # root@192.168.188.108 (pihole_key)
+# DNS / Proxy
+ssh pihole               # root@192.168.188.251 (pihole_key)
+ssh pihole-og            # root@192.168.188.249 (pihole_key)
+ssh pihole-eg            # root@192.168.188.245 (pihole_key)
+ssh caddy                # VIP 192.168.188.200 (pihole_key)
+ssh caddy-backup         # root@192.168.188.202 (pihole_key) — HA Master (alias: caddy-1)
+ssh caddy-og             # root@192.168.188.201 (pihole_key) — HA Backup OG
+ssh caddy-eg             # root@192.168.188.203 (pihole_key) — HA Backup EG
+
+# Services
+ssh keycloak             # brain@192.168.188.107 (pihole_key)
+ssh monitoring           # root@192.168.188.108 (id_rsa)
+ssh nextcloud            # brain@192.168.188.121 (pihole_key)
+ssh pxe-stack            # root@192.168.188.250 (pihole_key)
+
+# Webserver
+ssh brainhome-dev        # root@192.168.188.112 (pihole_key)
+ssh brainhome-prod       # root@192.168.188.116 (pihole_key)
+ssh brainhome-workstation # brain@192.168.188.193 (pihole_key)
 
 # Home Assistant
-ssh ha-master       # root@192.168.188.142 (vscode_rsa)
-ssh ha-ug           # root@192.168.188.152 (vscode_rsa)
-ssh ha-eg           # root@192.168.188.194 (vscode_rsa)
-ssh ha-og           # root@192.168.188.143 (vscode_rsa)
-ssh ha-ga           # root@192.168.188.191 (vscode_rsa)
+ssh ha-master            # root@192.168.188.142 (vscode_rsa)
+ssh ha-ug                # root@192.168.188.152 (vscode_rsa)
+ssh ha-eg                # root@192.168.188.194 (vscode_rsa)
+ssh ha-og                # root@192.168.188.143 (vscode_rsa)
+ssh ha-ga                # root@192.168.188.191 (vscode_rsa)
+
+# NAS & Sonstiges
+ssh nas                  # sshd@192.168.188.42 (pihole_key)
 ```
 
 ---

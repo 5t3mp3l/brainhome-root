@@ -7,3 +7,13 @@
 !INFRASTRUCTURE.md
 !ERLERNTES-WISSEN.md
 !TODO.md
+
+# Track workstation tools and docs
+!workstation/
+workstation/*
+!workstation/tools/
+workstation/tools/*
+!workstation/tools/cluster-inventory.sh
+!workstation/docs/
+workstation/docs/*
+!workstation/docs/ssh-config.md

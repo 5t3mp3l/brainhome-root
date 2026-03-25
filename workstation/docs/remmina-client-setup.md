@@ -4,7 +4,7 @@
 
 CT113 (`brainhome-workstation`, `192.168.188.193`) ist die primäre VS Code / Arbeits-Umgebung (Ubuntu 24.04 GNOME, XRDP Port 3389).
 
-**Login:** `brain` / `0248Brain579`
+**Login:** `brain` / `0248Brain8579`
 
 ---
 
@@ -80,7 +80,7 @@ ssh brainhome-workstation 'systemctl is-active xrdp xrdp-sesman'
 ## RDP Verbindung testen (von proxmox-master)
 
 ```bash
-xfreerdp /v:192.168.188.193 /u:brain /p:0248Brain579 /w:1920 /h:1080 2>/dev/null | head -5
+xfreerdp /v:192.168.188.193 /u:brain /p:0248Brain8579 /w:1920 /h:1080 2>/dev/null | head -5
 ```
 
 ---
@@ -97,7 +97,7 @@ eg-stefan-lp (192.168.188.58)  ──┘                (192.168.188.193, proxmo
 
 | Problem | Lösung |
 |---------|--------|
-| "Authentication failed" | Login: brain / 0248Brain579 |
+| "Authentication failed" | Login: brain / 0248Brain8579 |
 | Schwarzer Bildschirm nach Login | .xsession vorhanden? `ls ~/.xsession` auf CT113 |
 | GNOME startet nicht | startwm.sh nutzt GNOME X11 Session |
 | Color Manager Dialog | Polkit Regel: `/etc/polkit-1/rules.d/02-allow-color-manager.rules` |

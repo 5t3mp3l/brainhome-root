@@ -1,6 +1,6 @@
 # BrainHome – Erlerntes Wissen (Lessons Learned)
 
-> Stand: 21.03.2026
+> Stand: 25.03.2026
 > Zweck: Zentrale, langfristige Betriebs- und Engineering-Erkenntnisse aus den letzten Migrationen, Tooling- und Workspace-Arbeiten.
 
 ---
@@ -167,6 +167,9 @@
 - Tooling:
   - `/home/webserver/tools/migration-preflight.sh`
   - `/home/webserver/tools/agent-state.sh`
+  - `/home/webserver/tools/devctl.sh` (Cross-Node Dev-Steuerung, dynamisch via pvesh)
+  - `/home/workstation/tools/cluster-inventory.sh` (Cluster-Inventar via pvesh)
+  - `/home/workstation/docs/ssh-config.md` (SSH-Config Snapshot mit Annotationen)
 
 ---
 
@@ -433,4 +436,116 @@ Bei fehlenden MQTT-Credentials spammt Quarkus-Dev automatisch mit Reconnect-Fehl
 ```
 
 DevServices versucht sonst einen lokalen MQTT-Broker zu starten (Docker) – unerwünscht in LXC-Dev-Containern ohne Docker.
+
+---
+
+## 14) Proxmox-Cluster Infra-Learnings (25.03.2026)
+
+### 14.1 `/home` ist auf jedem Proxmox-Node ein separates lokales Filesystem
+
+- `/home` ist auf keinem Node automatisch NFS-synchronisiert. Jeder Node hat seine eigene Kopie.
+- Skript-Änderungen auf proxmox-master liegen **nicht automatisch** auf proxmox-ug/eg/og/ws vor.
+- Konsequenz: Nach jeder Änderung an Tools wie `devctl.sh` explizit auf alle Nodes deployen:
+  ```bash
+  for NODE in proxmox-workstation proxmox-ug proxmox-eg proxmox-og; do
+    scp /home/webserver/tools/devctl.sh ${NODE}:/home/webserver/tools/devctl.sh
+  done
+  ```
+- Langfristig: `git` auf allen Nodes installieren oder ein Deploy-Skript standardisieren.
+
+### 14.2 pvesh `--type lxc` ist nur auf neueren PVE-Versionen gültig
+
+- Neuere PVE (proxmox-master, proxmox-ws): `pvesh get /cluster/resources --type lxc` ✅
+- Ältere PVE (proxmox-ug): nur `vm`, `storage`, `node`, `sdn` als Type unterstützt → `400 Parameter verification failed`
+- **Portable Lösung**: kein `--type`-Flag verwenden, stattdessen im Python-Code nach `item['type'] == 'lxc'` filtern:
+  ```bash
+  pvesh get /cluster/resources --output-format json | python3 -c "
+  import json, sys
+  data = json.load(sys.stdin)
+  for item in data:
+      if item.get('type') != 'lxc': continue
+      ...
+  "
+  ```
+
+### 14.3 `ssh-keyscan -H` schreibt nur Kommentare, keine echten Key-Einträge
+
+- `ssh-keyscan -H 192.168.188.247 >> ~/.ssh/known_hosts` schrieb nur Kommentarzeilen (`#`).
+- SSH betrachtete den Host daher weiterhin als unbekannt → `Host key verification failed`.
+- **Korrekte Verwendung** ohne `-H` (unhashed) oder mit UserKnownHostsFile-Bypass:
+  ```bash
+  # Option A: keys wirklich eintragen
+  ssh-keyscan 192.168.188.247 2>/dev/null | grep -v "^#" >> ~/.ssh/known_hosts
+  # Option B: für Scripts, die keine interaktive Bestätigung wollen
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@IP ...
+  ```
+- In automatisierten Dispatch-Skripten ist Option B robuster, da sie auch bei korrupten oder veralteten known_hosts-Einträgen funktioniert.
+
+### 14.4 Proxmox-Tag-Konventionen sind cluster-weit relevant
+
+Tags sind das primäre Discovery-Mechanismus für dynamische Infrastruktur-Tools. Einmal vergeben, müssen sie gepflegt werden:
+
+| Tag | Bedeutung |
+|-----|-----------|
+| `devctl-target` | LXC-Container der von devctl.sh gesteuert wird |
+| `brainhome` | Teil der BrainHome-Infrastruktur |
+| `production` | Produktiv-Workload (nicht für Dev-Umgebungen) |
+| `dev` | Entwicklungsumgebung |
+| `infrastructure` | Infrastruktur-Dienst (Proxy, DNS, etc.) |
+
+- Fehlende oder falsche Tags können Discovery-Skripte fehlleiten.
+- `production`-Tag auf Dev-VMs (wie VM113 `brainhome-workstation`) ist irreführend → entfernen.
+- Nach jedem Backup-Lock-Ende vergessene Tag-Änderungen nachholen.
+
+### 14.5 devctl.sh Cross-Node Dispatch: Architektur
+
+```
+proxmox-ug$ devctl.sh status
+  → Discovery via pvesh: CT112 liegt auf proxmox-ws
+  → hostname=proxmox-ug ≠ proxmox-ws
+  → exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+         root@192.168.188.247 "bash /home/webserver/tools/devctl.sh" status
+       → hostname=proxmox-ws == proxmox-ws
+       → pct exec 112 -- bash ct-runner.sh status
+```
+
+- Das Skript dispatcht sich via `exec ssh` selbst auf den richtigen Node.
+- IP-Map ist nötig weil SSH-Aliases (`proxmox-ws`) nur auf proxmox-master in `~/.ssh/config` bekannt sind.
+- Auf dem Ziel-Node läuft das Skript erneut, entscheidet "ich bin korrekt" und führt `pct exec` aus.
+
+### 14.6 brainhome-root `.gitignore` verwendet Whitelist-Muster
+
+- Das Root-Repo (`/home`) liegt auf proxmox-master und enthält viele Unterverzeichnisse (alle Dienste).
+- `.gitignore` ignoriert standardmäßig **alles** (`*`) und erlaubt nur explizit aufgeführte Dateien:
+  ```
+  *
+  !.gitignore
+  !INFRASTRUCTURE.md
+  !ERLERNTES-WISSEN.md
+  !TODO.md
+  ...
+  ```
+- Neue Dateien in `workstation/`, `webserver/` etc. sind **standardmäßig ignoriert**.
+- Müssen explizit per `!dir/`, `dir/*`, `!dir/file` eingetragen werden.
+- Pattern für Unterverzeichnisse:
+  ```
+  !workstation/
+  workstation/*
+  !workstation/tools/
+  workstation/tools/*
+  !workstation/tools/cluster-inventory.sh
+  ```
+
+### 14.7 cluster-inventory.sh: zentrales Cluster-Inventar-Tool
+
+Neu erstellt in `/home/workstation/tools/cluster-inventory.sh`. Überblick aller VMs/CTs im Cluster mit Node, Status und Tags:
+
+```bash
+bash cluster-inventory.sh              # Tabelle aller 23 VMs/CTs
+bash cluster-inventory.sh --json       # JSON-Output
+bash cluster-inventory.sh --tag devctl-target    # Filter nach Tag
+bash cluster-inventory.sh --missing    # Alle ohne Tags
+```
+
+Basiert auf `pvesh get /cluster/resources` (ohne `--type`, portabel auf allen PVE-Versionen).
 

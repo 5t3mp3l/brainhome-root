@@ -132,7 +132,12 @@
       "**/logs/**": true,
       "**/.cache/**": true,
       "**/deps/**": true,
-      "**/backups/**": true
+      "**/backups/**": true,
+      "**/docker/**": true,
+      "**/.venv/**": true,
+      "**/venv/**": true,
+      "**/__pycache__/**": true,
+      "**/data/**": true
     },
 
     // Search Exclusions
@@ -143,7 +148,73 @@
       "**/*.log": true,
       "**/backups": true,
       "**/deps": true,
-      "**/build": true
+      "**/build": true,
+      "**/.venv": true,
+      "**/docker": true,
+      "**/data": true
+    },
+
+    // ── PERFORMANCE: Python / Pylance ─────────────────────────────────────────
+    // Pylance darf NUR webserver/ und workstation/ indexieren (Python-Code).
+    // Alle anderen Ordner (HA-YAML, Caddy, Pihole, etc.) sind kein Python → ausschließen.
+    // Verhindert den 3.7 GB RSS-Verbrauch durch Vollindex des 21-Ordner-Workspace.
+    "python.analysis.indexing": true,
+    "python.analysis.exclude": [
+      "./HomeAssistant/**",
+      "./architektur/**",
+      "./caddy/**",
+      "./pihole/**",
+      "./keycloak/**",
+      "./AI-on-the-edge/**",
+      "./brainPiEingang/**",
+      "./appstore-system/**",
+      "./openwrt-repeater-setup/**",
+      "./pxe-boot/**",
+      "./fritzbox/**",
+      "./autarkie/**",
+      "./grafana/**",
+      "**/haos*/**",
+      "**/docker/**",
+      "**/.venv/**",
+      "**/venv/**"
+    ],
+    "python.analysis.userFileIndexingLimit": 2000,
+
+    // ── PERFORMANCE: Java / Eclipse JDT ──────────────────────────────────────
+    // Java-LSP nur für webserver/ aktivieren. Alle Infra-Ordner ausschließen,
+    // da sie kein Java enthalten. Spart ~1 GB RAM (redhat.java startet 3 JVMs).
+    "java.import.exclusions": [
+      "**/archetype-resources/**",
+      "**/.metadata/**",
+      "./HomeAssistant/**",
+      "./architektur/**",
+      "./caddy/**",
+      "./pihole/**",
+      "./keycloak/**",
+      "./AI-on-the-edge/**",
+      "./brainPiEingang/**",
+      "./appstore-system/**",
+      "./openwrt-repeater-setup/**",
+      "./pxe-boot/**",
+      "./fritzbox/**",
+      "./autarkie/**",
+      "./grafana/**",
+      "./workstation/**"
+    ],
+    "java.maven.downloadSources": false,
+    "java.recommendations.dependency.analytics.show": false,
+
+    // ── PERFORMANCE: GitHub Copilot ───────────────────────────────────────────
+    // Copilot-Kontext auf aktive Datei beschränken (nicht ganzer Workspace).
+    "github.copilot.advanced": {},
+
+    // ── PERFORMANCE: Allgemein ────────────────────────────────────────────────
+    // Extension Host: nur notwendige Prozesse am Leben halten
+    "extensions.experimental.affinity": {
+      "redhat.java": 1,
+      "vscjava.vscode-gradle": 1,
+      "ms-python.python": 2,
+      "ms-python.vscode-pylance": 2
     },
     "files.associations": {
       "*.yaml": "home-assistant",

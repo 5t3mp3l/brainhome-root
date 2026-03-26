@@ -11,11 +11,12 @@
       "host": "brainhome-workstation",
       "host_ip": "192.168.188.193",
       "host_user": "brain",
-      "schedule": "*/10 * * * *",
+      "schedule": "alle 10 Minuten",
       "command": "/home/brain/brainhome-root/openwrt-repeater-setup/monitor-wifi-aps.sh",
       "log": "/home/brain/brainhome-root/openwrt-repeater-setup/.monitor-state/cron.log",
       "module": "openwrt-repeater-setup",
       "description": "Überwacht OpenWrt WiFi APs auf Verfügbarkeit und Verbindungsqualität",
+      "scheduler": "systemd timer: brainhome-wifi-monitor.timer (ersetzt cron)",
       "migrated_from": "proxmox-dev (root crontab)",
       "migrated_at": "2026-03-26"
     },
@@ -25,11 +26,12 @@
       "host": "brainhome-workstation",
       "host_ip": "192.168.188.193",
       "host_user": "brain",
-      "schedule": "0 3 * * 1",
+      "schedule": "0 3 * * 1 (Fallback) + Event-Trigger via caddy-ca-sync.path auf CT110",
       "command": "/home/brain/brainhome-root/caddy/scripts/distribute-ca.sh",
       "log": "/home/brain/brainhome-root/caddy/logs/distribute-ca.log",
       "module": "caddy",
-      "description": "Verteilt Caddy Root-CA-Zertifikat wöchentlich an alle Server (Montag 03:00)",
+      "description": "Verteilt Caddy Root-CA-Zertifikat bei PKI-Reset sofort + wöchentlicher Fallback (Montag 03:00)",
+      "trigger": "CT110 caddy-ca-sync.path → caddy-ca-sync.service → SSH brain@VM113 (Key: /root/.ssh/vm113_trigger)",
       "migrated_from": "proxmox-dev (root crontab)",
       "migrated_at": "2026-03-26"
     },
@@ -98,11 +100,12 @@
       "host": "brainhome-workstation",
       "host_ip": "192.168.188.193",
       "host_user": "brain",
-      "schedule": "*/15 * * * *",
+      "schedule": "alle 15 Minuten",
       "command": "/home/brain/brainhome-root/tools/bin/brainhome-inventory monitor-run --strict",
       "log": "/home/brain/brainhome-root/tools/logs/inventory/cron.log",
       "module": "tools",
       "description": "Aktualisiert Infrastruktur-Inventory alle 15 Minuten",
+      "scheduler": "systemd timer: brainhome-inventory-monitor.timer (ersetzt cron)",
       "migrated_from": "proxmox-dev (root crontab)",
       "migrated_at": "2026-03-26"
     },
@@ -112,11 +115,12 @@
       "host": "brainhome-workstation",
       "host_ip": "192.168.188.193",
       "host_user": "brain",
-      "schedule": "10 2 * * *",
+      "schedule": "täglich 02:10",
       "command": "/home/brain/brainhome-root/tools/bin/brainhome-inventory export-md",
       "log": "/home/brain/brainhome-root/tools/logs/inventory/export-cron.log",
       "module": "tools",
       "description": "Exportiert Inventory täglich als Markdown-Dokument (02:10)",
+      "scheduler": "systemd timer: brainhome-inventory-export.timer (ersetzt cron, Persistent=true)",
       "migrated_from": "proxmox-dev (root crontab)",
       "migrated_at": "2026-03-26"
     },
@@ -133,6 +137,20 @@
       "description": "Startet OpenWrt VMs wöchentlich neu (Sonntag 03:00) – verhindert USB-Speicherlecks",
       "migrated_from": "proxmox-dev (root crontab)",
       "migrated_at": "2026-03-26"
+    },
+    {
+      "id": "caddy-ca-sync",
+      "label": "Caddy Root-CA → Download-Verzeichnis synchronisieren",
+      "host": "caddy",
+      "host_ip": "192.168.188.202",
+      "host_user": "root",
+      "schedule": "0 3 * * *",
+      "command": "cp /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt /var/www/caddy-ca/ca.crt",
+      "log": "/var/log/caddy-ca-sync.log",
+      "module": "caddy",
+      "description": "Hält /var/www/caddy-ca/ca.crt aktuell – wird auf CT110 (Caddy selbst) ausgeführt, kein SSH nötig",
+      "note": "Direkt auf caddy deployed (root crontab CT110), nicht via brainhome-cron SSH",
+      "deployed_at": "2026-03-26"
     }
   ]
 }

@@ -24,15 +24,58 @@ from datetime import datetime
 # ── Konfiguration ──────────────────────────────────────────────────────────────
 SSH_KEY    = "/home/brain/.ssh/pihole_key"
 SSH_OPTS   = ["-i", SSH_KEY, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10", "-o", "BatchMode=yes"]
-LOG_FILE   = "/var/log/ha-addon-sync.log"
+LOG_FILE   = "/home/brain/brainhome-root/HomeAssistant/logs/ha-addon-sync.log"
 DRY_RUN    = "--dry-run" in sys.argv
 
 MASTER = {"name": "ha-master", "host": "root@192.168.188.142"}
-REMOTES = [
+
+# Fallback-Liste falls Auto-Discovery fehlschlägt
+REMOTES_FALLBACK = [
     {"name": "ha-ug",  "host": "root@192.168.188.152"},
-    {"name": "ha-eg",  "host": "root@192.168.188.148"},
+    {"name": "ha-eg",  "host": "root@192.168.188.194"},  # war .148, korrigiert 26.03.2026
     {"name": "ha-og",  "host": "root@192.168.188.143"},
+    {"name": "ha-ga",  "host": "root@192.168.188.191"},  # hinzugefügt 26.03.2026
 ]
+
+def discover_remotes():
+    """
+    Liest remote_homeassistant Einträge direkt aus ha-master config_entries.
+    Gibt Liste von {"name": ..., "host": ...} zurück.
+    Fällt auf REMOTES_FALLBACK zurück wenn Discovery fehlschlägt.
+    """
+    try:
+        cmd = (
+            "python3 -c \""
+            "import json; "
+            "d=json.load(open('/config/.storage/core.config_entries')); "
+            "entries=d['data']['entries']; "
+            "rh=[e for e in entries if e['domain']=='remote_homeassistant']; "
+            "[print(e.get('title','remote'), e['data']['host']) for e in rh]\""
+        )
+        rc, stdout, stderr = ssh_run(MASTER["host"], cmd, timeout=15)
+        if rc != 0 or not stdout.strip():
+            raise ValueError(f"SSH rc={rc}: {stderr.strip()[:100]}")
+
+        remotes = []
+        for line in stdout.strip().splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                ip    = parts[-1]
+                # Name aus Titel ableiten: "Home-EG" / "Home EG" / "Home Assistant EG" → "ha-eg"
+                title = " ".join(parts[:-1]).lower()
+                suffix = re.sub(r'^home(?:[\s-]+assistant)?[\s-]+', '', title)
+                name   = "ha-" + suffix if suffix else f"ha-{ip.split('.')[-1]}"
+                remotes.append({"name": name, "host": f"root@{ip}"})
+
+        if not remotes:
+            raise ValueError("Keine remote_homeassistant Einträge gefunden")
+
+        log(f"Auto-Discovery: {len(remotes)} Remote(s) von ha-master gelesen")
+        return remotes
+
+    except Exception as e:
+        log(f"Auto-Discovery fehlgeschlagen ({e}) — nutze Fallback-Liste")
+        return REMOTES_FALLBACK
 
 # ── Hilfsfunktionen ────────────────────────────────────────────────────────────
 def log(msg):
@@ -115,22 +158,26 @@ def update_addon(instance, slug, dry_run=False):
 def main():
     log("=" * 60)
     log(f"HA Addon Sync gestartet {'(DRY-RUN)' if DRY_RUN else ''}")
-    
+
     # 1. Addon-Liste von ha-master holen
     log(f"Lade Addons von {MASTER['name']} …")
     master_addons = get_addons(MASTER)
     if master_addons is None:
         log(f"✗ Kann {MASTER['name']} nicht erreichen — Abbruch")
         sys.exit(1)
-    
+
     installed_on_master = {slug for slug, info in master_addons.items() if info.get('state') not in ('', None)}
     log(f"  Master hat {len(master_addons)} Addons")
+
+    # 2. Remotes via Auto-Discovery laden
+    remotes = discover_remotes()
+    log(f"Synchronisiere mit {len(remotes)} Remote(s): {[r['name'] for r in remotes]}")
     
-    # 2. Für jede Remote-Instanz sync durchführen
+    # 3. Für jede Remote-Instanz sync durchführen
     total_updates = 0
     total_errors = 0
-    
-    for remote in REMOTES:
+
+    for remote in remotes:
         log(f"\nVerarbeite {remote['name']} …")
         remote_addons = get_addons(remote)
         if remote_addons is None:

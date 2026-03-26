@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""
+brainhome-cron — BrainHome Cron-Job Manager
+============================================
+Zentrale Verwaltung aller geplanten Jobs across der BrainHome-Infrastruktur.
+
+Commands:
+  list                   Alle registrierten Jobs anzeigen
+  list --module <m>      Jobs eines Moduls anzeigen
+  list --host <h>        Jobs eines Hosts anzeigen
+  list --json            JSON-Ausgabe
+  check                  SSH auf jeden Host – prüfen ob Job aktiv in crontab
+  check <id>             Einzelnen Job prüfen
+  deploy                 Alle Jobs auf ihre Ziel-Hosts via SSH deployen
+  deploy <id>            Einzelnen Job deployen
+  deploy --host <h>      Alle Jobs eines Hosts deployen
+  remove <id>            Job aus crontab entfernen (remote)
+  show <id>              Detail-Ansicht eines Jobs
+  help                   Diese Hilfe
+"""
+
+import json
+import os
+import sys
+import subprocess
+import shlex
+from pathlib import Path
+from datetime import datetime
+
+TOOLS_ROOT   = Path(os.environ.get("TOOLS_ROOT", str(Path(__file__).resolve().parent.parent)))
+REGISTRY_FILE = TOOLS_ROOT / "config" / "cron-registry.json"
+SSH_KEY      = Path.home() / ".ssh" / "brainhome_ws"
+
+RESET  = "\033[0m"
+BOLD   = "\033[1m"
+GREEN  = "\033[32m"
+YELLOW = "\033[33m"
+RED    = "\033[31m"
+CYAN   = "\033[36m"
+GRAY   = "\033[90m"
+
+
+def load_registry() -> dict:
+    if not REGISTRY_FILE.exists():
+        print(f"{RED}Registry nicht gefunden: {REGISTRY_FILE}{RESET}", file=sys.stderr)
+        sys.exit(1)
+    with open(REGISTRY_FILE) as f:
+        return json.load(f)
+
+
+def ssh_run(host_ip: str, user: str, cmd: str, capture=True) -> tuple[int, str]:
+    """Führt einen Befehl via SSH auf einem Remote-Host aus."""
+    ssh_cmd = [
+        "ssh",
+        "-o", "ControlMaster=no",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=10",
+        "-o", "StrictHostKeyChecking=no",
+        "-i", str(SSH_KEY),
+        f"{user}@{host_ip}",
+        cmd
+    ]
+    try:
+        result = subprocess.run(ssh_cmd, capture_output=capture, text=True, timeout=30)
+        return result.returncode, (result.stdout + result.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return 1, "TIMEOUT"
+    except Exception as e:
+        return 1, str(e)
+
+
+def cron_marker(job_id: str) -> str:
+    return f"# brainhome-cron:{job_id}"
+
+
+def cmd_list(args: list[str]) -> None:
+    data = load_registry()
+    jobs = data["jobs"]
+
+    # Filter
+    filter_module = None
+    filter_host   = None
+    as_json       = "--json" in args
+    for i, a in enumerate(args):
+        if a == "--module" and i + 1 < len(args):
+            filter_module = args[i + 1]
+        if a == "--host" and i + 1 < len(args):
+            filter_host = args[i + 1]
+
+    if filter_module:
+        jobs = [j for j in jobs if j.get("module") == filter_module]
+    if filter_host:
+        jobs = [j for j in jobs if j.get("host") == filter_host or j.get("host_ip") == filter_host]
+
+    if as_json:
+        print(json.dumps(jobs, indent=2, ensure_ascii=False))
+        return
+
+    if not jobs:
+        print(f"{YELLOW}Keine Jobs gefunden.{RESET}")
+        return
+
+    print(f"\n{BOLD}BrainHome Cron-Job Registry ({len(jobs)} Jobs){RESET}")
+    print(f"{GRAY}{'─' * 80}{RESET}")
+
+    by_host: dict[str, list] = {}
+    for j in jobs:
+        key = j.get("host", "unknown")
+        by_host.setdefault(key, []).append(j)
+
+    for host, host_jobs in by_host.items():
+        host_ip = host_jobs[0].get("host_ip", "")
+        print(f"\n{CYAN}{BOLD}  {host}{RESET}{GRAY} ({host_ip}){RESET}")
+        for j in host_jobs:
+            status_icon = "⏰"
+            print(f"    {status_icon} {BOLD}{j['id']}{RESET}")
+            print(f"       {j['label']}")
+            print(f"       {GRAY}Schedule:{RESET} {j['schedule']}")
+            print(f"       {GRAY}Command: {RESET} {j['command']}")
+            print(f"       {GRAY}Log:     {RESET} {j.get('log', '—')}")
+            if j.get("module"):
+                print(f"       {GRAY}Modul:   {RESET} {j['module']}")
+
+    print()
+
+
+def cmd_show(args: list[str]) -> None:
+    if not args:
+        print(f"{RED}Fehler: Job-ID angeben.{RESET}")
+        sys.exit(1)
+    job_id = args[0]
+    data = load_registry()
+    job = next((j for j in data["jobs"] if j["id"] == job_id), None)
+    if not job:
+        print(f"{RED}Job '{job_id}' nicht gefunden.{RESET}")
+        sys.exit(1)
+    print(json.dumps(job, indent=2, ensure_ascii=False))
+
+
+def cmd_check(args: list[str]) -> None:
+    data = load_registry()
+    jobs = data["jobs"]
+
+    filter_id = args[0] if args and not args[0].startswith("--") else None
+    if filter_id:
+        jobs = [j for j in jobs if j["id"] == filter_id]
+        if not jobs:
+            print(f"{RED}Job '{filter_id}' nicht gefunden.{RESET}")
+            sys.exit(1)
+
+    print(f"\n{BOLD}Cron-Status Check{RESET}")
+    print(f"{GRAY}{'─' * 60}{RESET}\n")
+
+    all_ok = True
+    for job in jobs:
+        host_ip = job["host_ip"]
+        user    = job.get("host_user", "brain")
+        marker  = cron_marker(job["id"])
+
+        rc, out = ssh_run(host_ip, user, f"crontab -l 2>/dev/null | grep -F '{marker}'")
+        if rc == 0 and out.strip():
+            print(f"  {GREEN}✅{RESET} {job['id']}")
+            print(f"     {GRAY}{out.strip()[:80]}{RESET}")
+        else:
+            print(f"  {RED}❌{RESET} {job['id']} {GRAY}– nicht in crontab ({user}@{host_ip}){RESET}")
+            all_ok = False
+
+    print()
+    if all_ok:
+        print(f"{GREEN}Alle Jobs aktiv.{RESET}\n")
+    else:
+        print(f"{YELLOW}Einige Jobs fehlen. Ausführen: brainhome cron deploy{RESET}\n")
+
+
+def get_local_ips() -> set:
+    """Gibt alle lokalen IP-Adressen zurück."""
+    try:
+        result = subprocess.run(
+            ["hostname", "-I"], capture_output=True, text=True, timeout=5
+        )
+        return set(result.stdout.strip().split())
+    except Exception:
+        return set()
+
+
+def cmd_deploy(args: list[str]) -> None:
+    data = load_registry()
+    jobs = data["jobs"]
+
+    filter_id   = None
+    filter_host = None
+    force_local = "--local" in args
+    for i, a in enumerate(args):
+        if a == "--host" and i + 1 < len(args):
+            filter_host = args[i + 1]
+        elif not a.startswith("--"):
+            filter_id = a
+
+    if filter_id:
+        jobs = [j for j in jobs if j["id"] == filter_id]
+        if not jobs:
+            print(f"{RED}Job '{filter_id}' nicht gefunden.{RESET}")
+            sys.exit(1)
+    if filter_host:
+        jobs = [j for j in jobs if j.get("host") == filter_host or j.get("host_ip") == filter_host]
+
+    local_ips = get_local_ips()
+
+    print(f"\n{BOLD}Cron-Deploy ({len(jobs)} Job(s)){RESET}")
+    print(f"{GRAY}{'─' * 60}{RESET}\n")
+
+    for job in jobs:
+        host_ip  = job["host_ip"]
+        user     = job.get("host_user", "brain")
+        marker   = cron_marker(job["id"])
+        schedule = job["schedule"]
+        command  = job["command"]
+        log      = job.get("log", "/dev/null")
+        log_dir  = str(Path(log).parent)
+
+        is_local = force_local or host_ip in local_ips or host_ip == "localhost"
+
+        cron_line    = f"{schedule} {command} >> {log} 2>&1 {marker}"
+        remove_old   = f"crontab -l 2>/dev/null | grep -v '{marker}'"
+        deploy_cmd   = f"({remove_old}; echo '{cron_line}') | crontab -"
+        mkdir_cmd    = f"mkdir -p {shlex.quote(log_dir)}"
+
+        if is_local:
+            # Direkt lokal ohne SSH
+            os.makedirs(log_dir, exist_ok=True)
+            result = subprocess.run(
+                f"({remove_old}; echo '{cron_line}') | crontab -",
+                shell=True, capture_output=True, text=True
+            )
+            rc, out = result.returncode, (result.stdout + result.stderr).strip()
+        else:
+            ssh_run(host_ip, user, mkdir_cmd, capture=True)
+            rc, out = ssh_run(host_ip, user, deploy_cmd)
+
+        mode = f"{GRAY}(lokal){RESET}" if is_local else f"{GRAY}(SSH){RESET}"
+        if rc == 0:
+            print(f"  {GREEN}✅{RESET} {job['id']} {mode}")
+            print(f"     {GRAY}{schedule} {command[:60]}...{RESET}")
+        else:
+            print(f"  {RED}❌{RESET} {job['id']} {mode}")
+            print(f"     {RED}{out[:120]}{RESET}")
+
+    print()
+
+
+def cmd_remove(args: list[str]) -> None:
+    if not args:
+        print(f"{RED}Fehler: Job-ID angeben.{RESET}")
+        sys.exit(1)
+    job_id = args[0]
+    data = load_registry()
+    job = next((j for j in data["jobs"] if j["id"] == job_id), None)
+    if not job:
+        print(f"{RED}Job '{job_id}' nicht gefunden.{RESET}")
+        sys.exit(1)
+
+    host_ip = job["host_ip"]
+    user    = job.get("host_user", "brain")
+    marker  = cron_marker(job["id"])
+
+    remove_cmd = f"(crontab -l 2>/dev/null | grep -v '{marker}') | crontab -"
+    rc, out = ssh_run(host_ip, user, remove_cmd)
+    if rc == 0:
+        print(f"{GREEN}✅ Job '{job_id}' aus crontab entfernt ({user}@{host_ip}).{RESET}")
+    else:
+        print(f"{RED}❌ Fehler: {out}{RESET}")
+
+
+def cmd_help() -> None:
+    print(__doc__)
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if not args:
+        cmd_list([])
+        return
+
+    cmd = args[0]
+    rest = args[1:]
+
+    commands = {
+        "list":   cmd_list,
+        "check":  cmd_check,
+        "deploy": cmd_deploy,
+        "remove": cmd_remove,
+        "show":   cmd_show,
+        "help":   lambda _: cmd_help(),
+    }
+
+    if cmd in commands:
+        commands[cmd](rest)
+    else:
+        print(f"{RED}Unbekannter Befehl: {cmd}{RESET}")
+        cmd_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

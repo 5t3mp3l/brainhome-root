@@ -1,6 +1,6 @@
 # 🏠 BrainHome Infrastructure — Übersicht
 
-**Stand**: 25. März 2026  
+**Stand**: 26. März 2026  
 **Subnetz**: `192.168.188.0/24`
 
 **Lessons Learned (aktuell)**: `/home/ERLERNTES-WISSEN.md`
@@ -11,7 +11,7 @@
 
 | Host | IP | Typ | CT/VM-ID | Node | Dienst | SSH |
 |------|----|-----|----------|------|--------|-----|
-| proxmox-dev | 192.168.188.254 | Proxmox Bare Metal | — | — | Hypervisor (Master/Dev) | `ssh proxmox-dev` |
+| proxmox-dev | 192.168.188.254 | Proxmox Bare Metal | — | — | Hypervisor (leer, keine VMs/CTs mehr) | `ssh proxmox-dev` |
 | proxmox-workstation | 192.168.188.247 | Proxmox Bare Metal | — | — | Hypervisor Workstation | `ssh proxmox-workstation` |
 | proxmox-ug | 192.168.188.248 | Proxmox Bare Metal | — | — | Hypervisor UG | `ssh proxmox-ug` |
 | proxmox-eg | 192.168.188.253 | Proxmox Bare Metal | — | — | Hypervisor EG | `ssh proxmox-eg` |
@@ -43,8 +43,8 @@
 
 | Node | IP | Rolle | Hosts (wichtig) |
 |------|----|-------|----------------|
-| proxmox-dev | 192.168.188.254 | Master / Dev Orchestrierung | `devctl.sh` wird hier ausgeführt |
-| proxmox-workstation | 192.168.188.247 | Workstation + Dev CTs | CT112 brainhome-dev, VM113 brainhome-workstation, VM101 ha-master, VM219 monitoring |
+| proxmox-dev | 192.168.188.254 | Reserve / leer | — (alle VMs entfernt März 2026) |
+| proxmox-workstation | 192.168.188.247 | Workstation + Dev CTs + Cron-Host | CT112 brainhome-dev, VM113 brainhome-workstation, VM101 ha-master, VM219 monitoring |
 | proxmox-ug | 192.168.188.248 | UG Services | CT100 pihole, CT110 caddy-backup, CT116 brainhome-prod, CT130 pxe-stack, VM106–115 |
 | proxmox-eg | 192.168.188.253 | EG Services | CT114 pihole-eg, CT117 caddy-eg, VM102 haos-eg, VM108 openwrt-eg |
 | proxmox-og | 192.168.188.252 | OG Services | CT111 pihole-og, CT120 caddy-og, VM103 haos-og, VM109 openwrt-og |
@@ -243,9 +243,10 @@ curl -sk -X POST https://keycloak.brain/admin/realms/brainhome/users \
 
 ---
 
-## 💻 VS Code Development Setup (proxmox-dev + proxmox-eg)
+## 💻 VS Code Development Setup (VM113 brainhome-workstation)
 
-Beide Proxmox-Nodes haben identisches Dev-Setup:
+Das Development-Setup läuft vollständig auf **VM113 (brainhome-workstation, 192.168.188.193)**.
+Proxmox-dev wird nicht mehr für Dev genutzt (alle VMs und Cron-Jobs migriert, März 2026).
 
 | Komponente | Version | Pfad |
 |------------|---------|------|
@@ -265,9 +266,8 @@ source /home/.venv/bin/activate
 ```
 
 **VS Code Remote SSH Verbindung:**  
-- VS Code → Remote SSH → `root@192.168.188.254` (proxmox-dev)
-- VS Code → Remote SSH → `root@192.168.188.253` (proxmox-eg)  
-- Workspace öffnen: `/home/HomeAssistant/HomeAssistant.code-workspace`
+- VS Code → Remote SSH → `brain@192.168.188.193` (brainhome-workstation, VM113)
+- Workspace öffnen: `/home/brain/brainhome-root/BrainHome.code-workspace`
 
 **Workspace Tasks** (Ctrl+Shift+P → Tasks: Run Task):
 - `⬇️ Pull ALL von HA` — Alle 4 HA-Configs lokal synchronisieren
@@ -343,11 +343,41 @@ remote_homeassistant:
 
 ---
 
-## � HA Addon Sync (proxmox-dev)
+## ⏰ Geplante Jobs (brainhome-cron)
 
-**Script**: `/usr/local/bin/ha-addon-update-sync.py`  
-**Log**: `/var/log/ha-addon-sync.log`  
-**Cron**: `30 3 * * *` auf proxmox-dev
+**Alle Cron-Jobs laufen auf VM113 (brainhome-workstation, brain crontab).**  
+**Registry**: `/home/brain/brainhome-root/tools/config/cron-registry.json`  
+**Tool**: `brainhome cron list|check|deploy|remove|show`  
+**Migriert von**: proxmox-dev (März 2026)
+
+| ID | Schedule | Beschreibung | Modul |
+|----|----------|--------------|-------|
+| `openwrt-wifi-monitor` | `*/10 * * * *` | OpenWrt WiFi AP Monitoring | openwrt-repeater-setup |
+| `caddy-ca-distribute` | `0 3 * * 1` | Caddy CA-Cert wöchentlich verteilen | caddy |
+| `pihole-dns-sync` | `*/5 * * * *` | Pi-hole DNS Sync (pihole-1 → og/eg) | pihole |
+| `pihole-gravity-sync` | `0 3 * * *` | Pi-hole Gravity DB täglich | pihole |
+| `ha-addon-sync` | `30 3 * * *` | HA Addon-Versionen sync (master→ug/eg/og) | HomeAssistant |
+| `solarman-cloud-fetch` | `0 6 1 * *` | Solarman Cloud Datenabruf monatlich | autarkie |
+| `brainhome-inventory-monitor` | `*/15 * * * *` | Infrastruktur-Inventory refresh | tools |
+| `brainhome-inventory-export` | `10 2 * * *` | Inventory Markdown-Export täglich | tools |
+| `openwrt-vm-reboot` | `0 3 * * 0` | OpenWrt VM wöchentlicher Neustart | openwrt-repeater-setup |
+
+```bash
+brainhome cron list            # alle Jobs anzeigen
+brainhome cron check           # prüfen ob Jobs aktiv in crontab
+brainhome cron deploy --local  # alle Jobs auf lokalem Host deployen
+brainhome cron deploy <id>     # einzelnen Job deployen
+brainhome cron remove <id>     # Job aus crontab entfernen
+```
+
+---
+
+## 🏗️ HA Addon Sync (VM113 brainhome-workstation)
+
+**Script**: `/home/brain/brainhome-root/HomeAssistant/scripts/ha-addon-update-sync.py`  
+**Log**: `/home/brain/brainhome-root/HomeAssistant/logs/ha-addon-sync.log`  
+**Cron**: `30 3 * * *` auf VM113 (brainhome-workstation) — via `brainhome cron`  
+**SSH-Key**: `~/.ssh/pihole_key` (auf VM113)
 
 Synct Addon-Versionen von ha-master auf alle Remote-Instanzen (ha-ug, ha-eg, ha-og).
 
@@ -360,10 +390,10 @@ Synct Addon-Versionen von ha-master auf alle Remote-Instanzen (ha-ug, ha-eg, ha-
 
 ```bash
 # Manuell testen:
-python3 /usr/local/bin/ha-addon-update-sync.py --dry-run
+python3 /home/brain/brainhome-root/HomeAssistant/scripts/ha-addon-update-sync.py --dry-run
 
 # Live-Lauf:
-python3 /usr/local/bin/ha-addon-update-sync.py
+python3 /home/brain/brainhome-root/HomeAssistant/scripts/ha-addon-update-sync.py
 ```
 
 > Hinweis: HA REST API (`/api/`) und Supervisor-API (`/api/hassio/`) sind von extern über Bearer-Tokens aus `.storage/auth` **nicht** nutzbar (Refresh-Token-Format, kein Direct-Bearer). Die `ha` CLI via SSH ist der einzig zuverlässige Weg.
@@ -394,10 +424,12 @@ Befehl: `sed -i 's/^# de_DE.UTF-8/de_DE.UTF-8/g' /etc/locale.gen && locale-gen &
 - [x] `auth.brain` DNS-Eintrag in beiden Pi-hole eingetragen
 - [x] Caddy reverse_proxy für alle 4 HA-Sites (oauth2-proxy als RP)
 - [x] `auth.brain` → redir zu ha-master (legacy oauth2-proxy Port 4180 deaktiviert)
-- [x] Pi-hole Sync: `pihole-sync.py` aktiv (cron: */5 DNS, 03:00 Gravity)
+- [x] Pi-hole Sync: `pihole-sync.py` aktiv — **auf VM113** (cron: */5 DNS, 03:00 Gravity) via `brainhome cron`
 - [x] Keycloak-Gruppen: admin / eg-user / og-user / gast-user mit allowed_groups ✅
-- [x] HA Addon Sync: `ha-addon-update-sync.py` aktiv (cron: 03:30, via SSH + ha CLI) ✅
+- [x] HA Addon Sync: `ha-addon-update-sync.py` aktiv — **auf VM113** (cron: 03:30) via `brainhome cron` ✅
 - [x] HA MASTER: `remote_homeassistant` → EG/OG/UG alle 3 `connected`, 1380+ Entities aggregiert ✅
+- [x] **proxmox-dev befreit**: alle VMs (104/105) gelöscht, Cron-Jobs auf VM113 migriert (März 2026) ✅
+- [x] **brainhome-cron**: zentrale Cron-Registry + CLI Tool (`brainhome cron`) ✅
 - [x] JDK 17 + Python venv + SSH Config auf proxmox-dev ✅
 - [x] JDK 17 + Python venv + SSH Config auf proxmox-eg ✅
 - [x] VS Code Dev-Setup: Workspace mit 14 Tasks (Pull/Push/SSH/Status) ✅

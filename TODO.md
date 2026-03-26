@@ -43,7 +43,7 @@
 - [x] Hostnamen eingetragen: proxmox, ha-ug, keycloak, pihole, strommeter, ap-eg, ap-og, nas
 - [x] Router/DHCP: Pi-hole als primären DNS eintragen (FritzBox → 192.168.188.251)
 - [x] Zweiten Pi-hole als Fallback (pihole-2 → 192.168.188.249)
-- [ ] Caddy / portal.brain DNS-Eintrag ergänzen (wenn Caddy steht)
+- [x] Caddy / portal.brain DNS-Eintrag ergänzen → 192.168.188.200 portal.brain (Pi-hole + Caddy, März 2026)
 
 ### Caddy Reverse Proxy
 - [x] Caddy LXC Container 110 angelegt (192.168.188.200, Debian 12)
@@ -54,8 +54,8 @@
 - [x] `local_certs` TLS aktiv
 - [x] Root-CA-Zertifikat auf Server-Systeme verteilt (`distribute-ca.sh`, gültig bis 2036)
 - [ ] Root-CA in Browser/Clients importieren → `https://caddy.brain/ca.crt` oder `/home/caddy/caddy-root-ca.crt` kopieren
-- [ ] `portal.brain` Route hinzufügen (wenn BrainPortal deployed)
-- [ ] `grafana.brain`, `nextcloud.brain` (wenn Dienste laufen)
+- [x] `portal.brain` Route hinzufügen → reverse_proxy CT116:8081, Alias für brainhome-prod (März 2026)
+- [x] `grafana.brain`, `nextcloud.brain` → bereits im Caddyfile aktiv (März 2026)
 
 ---
 
@@ -85,7 +85,7 @@
 ### ☀️ Solaranlage & Autarkie (haos-ug)
 - [x] Solarman-Integration: davidrapan v25.08.16 migriert (15.03.2026)
 - [x] `/home/autarkie/` Workspace-Ordner angelegt (Docs, Scripts, Daten)
-- [ ] **Solarman Cloud API**: APP_ID + APP_SECRET eintragen → `solarman-api.env`
+- [x] **Solarman Cloud API**: APP_ID + APP_SECRET eintragen → `solarman-api.env` (bereits vorhanden, März 2026)
 - [ ] **Historische Daten laden**: `python3 /home/autarkie/scripts/fetch-solarman-cloud.py --start 2023-01-01 --sync-nas`
 - [ ] **HA Statistics importieren**: `python3 /home/autarkie/scripts/import-ha-statistics.py --all`
 - [ ] `_2`-Duplikat-Entities auf HA-Master bereinigen
@@ -149,7 +149,7 @@
 - [ ] Modul `energy/` anlegen → Energie-Verlauf
 - [ ] Deployment VM einrichten
 - [ ] Keycloak OIDC Integration
-- [ ] `portal.brain` via Caddy erreichbar
+- [x] `portal.brain` via Caddy erreichbar → reverse_proxy CT116:8081 (März 2026)
 
 ---
 
@@ -219,10 +219,14 @@
 - [x] BrainPortal Code-Basis importiert (`/home/webserver/`)
 - [x] Architektur-Dokumentation erstellt (`/home/architektur/`)
 - [x] brainPiEingang Dokumentation erstellt
+- [x] proxmox-dev befreit: VMs 104 + 105 gelöscht, Crontab bereinigt (26.03.2026)
+- [x] brainhome-cron: Cron-Registry + CLI-Tool erstellt, alle 9 Jobs auf VM113 deployed (26.03.2026)
+- [x] pihole-sync.py: Script nach brainhome-root migriert + SSH-Key-Pfad korrigiert (26.03.2026)
+- [x] ha-addon-update-sync.py: Script nach brainhome-root migriert + SSH-Key-Pfad korrigiert (26.03.2026)
 
 ---
 
-*Letzte Aktualisierung: 19. März 2026*
+*Letzte Aktualisierung: 26. März 2026*
 
 ---
 

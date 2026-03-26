@@ -77,6 +77,22 @@
       "path": "./grafana"
     },
     {
+      "name": "⚙️ BrainHome Platform",
+      "path": "./brainhome-platform"
+    },
+    {
+      "name": "☁️ Nextcloud",
+      "path": "./nextcloud"
+    },
+    {
+      "name": "🌐 OpenWrt (Router)",
+      "path": "./openwrt"
+    },
+    {
+      "name": "🛠️ BrainHome Tools",
+      "path": "./tools"
+    },
+    {
       "name": "💻 Workstation",
       "path": "./workstation"
     },

@@ -21,3 +21,27 @@ workstation/scripts/*
 workstation/docs/*
 !workstation/docs/ssh-config.md
 !workstation/docs/remmina-client-setup.md
+
+# Track brainhome-cron tool + registry
+!tools/
+tools/*
+!tools/bin/
+tools/bin/*
+!tools/bin/brainhome-cron
+!tools/config/
+tools/config/*
+!tools/config/cron-registry.json
+
+# Track pihole sync script
+!pihole/
+pihole/*
+!pihole/scripts/
+pihole/scripts/*
+!pihole/scripts/pihole-sync.py
+
+# Track HA addon sync script
+!HomeAssistant/
+HomeAssistant/*
+!HomeAssistant/scripts/
+HomeAssistant/scripts/*
+!HomeAssistant/scripts/ha-addon-update-sync.py

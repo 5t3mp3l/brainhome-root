@@ -53,7 +53,7 @@
 - [x] Routing konfiguriert: ha-ug, keycloak, pihole, proxmox, strommeter
 - [x] `local_certs` TLS aktiv
 - [x] Root-CA-Zertifikat auf Server-Systeme verteilt (`distribute-ca.sh`, gültig bis 2036)
-- [ ] Root-CA in Browser/Clients importieren → `https://caddy.brain/ca.crt` oder `/home/caddy/caddy-root-ca.crt` kopieren
+- [x] Root-CA in Browser/Clients importieren → `http://caddy.brain/` (Anleitung + Download, März 2026)
 - [x] `portal.brain` Route hinzufügen → reverse_proxy CT116:8081, Alias für brainhome-prod (März 2026)
 - [x] `grafana.brain`, `nextcloud.brain` → bereits im Caddyfile aktiv (März 2026)
 
@@ -67,13 +67,13 @@
 
 ### haos-eg
 - [x] Keycloak SSO (`hass-oidc-auth`, client: homeassistant-eg, aktiv)
-- [ ] Config aus `/home/haos-configs/haos-eg/` übernehmen
+- [x] Config aus `haos-configs/haos-eg/` übernehmen (Mar 2026, ha core check ✓)
 - [ ] MQTT-Verbindung zu Mosquitto testen
 - [ ] Erste Entitäten (Licht, Sensoren EG) einrichten
 
 ### haos-og
 - [x] Keycloak SSO (`hass-oidc-auth`, client: homeassistant-og, aktiv)
-- [ ] Config aus `/home/haos-configs/haos-og/` übernehmen
+- [x] Config aus `haos-configs/haos-og/` übernehmen (Mar 2026, ha core check ✓)
 - [ ] MQTT-Verbindung testen
 - [ ] Erste Entitäten OG einrichten
 
@@ -112,7 +112,7 @@
 - [x] Node Exporter auf proxmox, proxmox-eg, proxmox-og, proxmox-ug installieren
 - [x] Proxmox-Metriken scrapen (node-exporter auf allen 4 Nodes aktiv)
 - [x] Grafana Container anlegen + Datasource konfigurieren
-- [ ] Dashboard: Server CPU / RAM / Temp
+- [x] Dashboard: Server CPU / RAM / Temp (Temperatur-Section in proxmox.json, Provisioning-Fix, SSO-Fix)
 - [ ] Dashboard: Energie (Strommeter)
 - [x] Grafana mit Keycloak SSO verbinden (SSO aktiv → `grafana.brain` via Keycloak)
 

@@ -1,0 +1,36 @@
+# Secrets
+/docker/.env
+
+# Runtime data
+/data/**
+!/data/.gitkeep
+/logs/**
+!/logs/.gitkeep
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Optional local dumps
+*.tar.gz
+*.bak
+
+# --- BrainHome local/generated artifacts ---
+*.log
+*.log.*
+logs/
+.cache/
+*.tmp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# VS Code local state (keep shared recommendations/settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/brainhome-api.http

@@ -1,6 +1,6 @@
 # SSH Config — proxmox-master (`/root/.ssh/config`) + brainhome-workstation (`~/.ssh/config`)
 
-> Stand: 25. März 2026  
+> Stand: 29. März 2026  
 > `proxmox-root.conf` liegt auf dem proxmox-master unter `/root/.ssh/config`.  
 > `workstation.conf` liegt auf der brainhome-workstation VM unter `/home/brain/.ssh/config`.  
 > **Keys** sind NICHT versioniert (nur die Config-Struktur).
@@ -59,6 +59,8 @@ Deploy (einmalig mit Passwort):
 ```bash
 ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.247   # proxmox-workstation
 ssh-copy-id -i ~/.ssh/brainhome_ws.pub root@192.168.188.248   # proxmox-ug
+ssh-copy-id -i ~/.ssh/brainhome_ws.pub brain@192.168.188.148  # ug-buero-tc ✓ 2026-03-29
+ssh-copy-id -i ~/.ssh/brainhome_ws.pub stefan@192.168.188.58  # eg-stefan-lp ✓ 2026-03-29
 ```
 
 ---
@@ -234,6 +236,21 @@ Host workstation
     User brain
     IdentityFile /root/.ssh/pihole_key
     StrictHostKeyChecking no
+
+# Endgeräte / Clients (RDP → CT113)
+Host ug-buero-tc
+    HostName 192.168.188.148
+    User brain
+    IdentityFile ~/.ssh/brainhome_ws
+    StrictHostKeyChecking no
+    ConnectTimeout 10
+
+Host eg-stefan-lp
+    HostName 192.168.188.58
+    User stefan
+    IdentityFile ~/.ssh/brainhome_ws
+    StrictHostKeyChecking no
+    ConnectTimeout 10
 
 # Home Assistant Instanzen
 Host ha-master

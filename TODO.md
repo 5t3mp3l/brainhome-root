@@ -22,6 +22,13 @@
 - [ ] grafana: Dashboard-Lint/Provisioning-Check als Task aufnehmen
 - [ ] pxe-boot/fritzbox/autarkie/system-monitor: je Modul 2-3 Kern-Tasks fuer Health und Logs vereinheitlichen
 
+## Aktuelle Log-Probleme
+- [ ] PXE-HTTP Deployment: Port-80-Konflikt im Docker-Host-Netzwerk erkennen und dokumentieren.
+- [ ] PXE-HTTP Loghinweis: `directory index of "/usr/share/nginx/html/" is forbidden` ist kein Blocker, solange die Boot-Assets direkt erreichbar sind.
+- [ ] Backup-Problem: NFS-gehostete LXC-Container fallen bei `vzdump --mode snapshot` auf `suspend` zurück und können Keepalived einfrieren.
+- [ ] Kurzfristige Backup-Schutzmaßnahmen dokumentieren: `vzdump --nofreeze`, gestaffelte Backup-Fenster, Backup-Jobs entkoppeln, Backup-Streams priorisieren.
+- [ ] Langfristige Lösung: LXC-Storage von NFS auf `local-lvm` migrieren oder PBS einführen.
+
 ---
 
 ## 🔴 Prio 1 – Grundfundament
@@ -63,38 +70,71 @@
 
 ### haos-master
 - [x] Keycloak SSO (`hass-oidc-auth`, client: homeassistant-master, aktiv)
+- [x] remote_homeassistant: EG (`.194`), OG (`.143`), UG (`.152`), GA (`.191`) alle connected und `loaded` (26.03.2026)
+- [x] remote_homeassistant Verbindungen nach VM-Resets re-verifiziert: EG/OG/UG/GA alle `loaded` (27.03.2026)
+- [x] **ha-master IP statisch setzen** — DHCP-Reservation in FritzBox für MAC `02:01:04:25:6E:45` → `.142` gesetzt, oauth2-proxy + Pi-hole bereits korrekt konfiguriert (27.03.2026)
 - [ ] Erste Automationen / zentrale Logik einrichten
 
 ### haos-eg
 - [x] Keycloak SSO (`hass-oidc-auth`, client: homeassistant-eg, aktiv)
 - [x] Config aus `haos-configs/haos-eg/` übernehmen (Mar 2026, ha core check ✓)
-- [ ] MQTT-Verbindung zu Mosquitto testen
+- [x] IP korrigiert: `.148` → `.194` via REST-API-Flow (26.03.2026, Entry `01KMNT410RGERBG5B5CW9EXRGJ`)
+- [x] Bluetooth-USB Passthrough gesetzt (`usb1: host=2357:0604,usb3=1`) auf VM102/proxmox-eg (27.03.2026)
+- [x] HA Core erreichbar (8123 OPEN, 27.03.2026 nach Backup-Incident Wiederherstellung)
+- [x] MQTT (core-mosquitto) läuft auf ha-eg: Integration `loaded` (27.03.2026)
+- [x] Zigbee2MQTT Bridge auf ha-eg aktiv: `connection_state = on`, Version 2.9.1 (27.03.2026)
+- [x] ZHA-Leiche entfernt (war nie konfiguriert, `data={}`) – Z2M bleibt Zigbee-Stack auf ha-eg (27.03.2026)
+- [x] **Bluetooth Integration** eingerichtet: hci0 TP-Link RTL8761BU `3C:6A:D2:B5:82:F6`, entry `01KMQ6HEETYK87GM1CKTBFWD7E`, state `loaded` (27.03.2026)
 - [ ] Erste Entitäten (Licht, Sensoren EG) einrichten
 
 ### haos-og
 - [x] Keycloak SSO (`hass-oidc-auth`, client: homeassistant-og, aktiv)
 - [x] Config aus `haos-configs/haos-og/` übernehmen (Mar 2026, ha core check ✓)
-- [ ] MQTT-Verbindung testen
+- [x] Bluetooth-USB Passthrough gesetzt (`usb1: host=2357:0604,usb3=1`) auf VM103/proxmox-og (27.03.2026)
+- [x] HA Core erreichbar (8123 OPEN, 27.03.2026 nach Backup-Incident Wiederherstellung)
+- [x] MQTT (core-mosquitto) läuft auf ha-og: Integration `loaded` (27.03.2026)
+- [x] Zigbee2MQTT Bridge auf ha-og aktiv: `connection_state = on` (27.03.2026)
+- [x] ZHA-Leiche entfernt (war nie konfiguriert, `data={}`) – Z2M bleibt Zigbee-Stack auf ha-og (27.03.2026)
+- [x] **Bluetooth Integration** eingerichtet: hci0 TP-Link RTL8761BU `50:3D:D1:BC:20:F0`, entry `01KMQ6HE8GNA38EMCRM1KEB710`, state `loaded` (27.03.2026)
 - [ ] Erste Entitäten OG einrichten
 
+### haos-ga
+- [x] VM115 auf proxmox-ug angelegt (192.168.188.191), HAOS 2026.3.2
+- [x] SSH-Addon aktiviert (Port 22, Passwort-Auth)
+- [x] `remote_homeassistant` Custom Component von ha-master übertragen + als Remote Node eingerichtet (26.03.2026)
+- [x] Discovery-Endpoint aktiv: `http://192.168.188.191:8123/api/remote_homeassistant/discovery` → 200 OK
+- [x] Keycloak-Client `homeassistant-ga` anlegen + SSO einrichten (ausstehend)
+- [x] LLT-Token erstellt, gespeichert in `grafana/docker/secrets/ha_ga_token`
+- [x] ha-master verbunden: zeroconf-Flow bestätigt, Entry `01KMNT0F2Y5Y0R5J3H802V0NNB`, state `loaded` (26.03.2026)
+- [x] Keycloak SSO (`auth_oidc` v0.6.5, client `homeassistant-ga`) – BrainHome SSO Button aktiv (27.03.2026)
+- [x] Prometheus-Scraping: ha_ga_token Secret-Bug behoben (war Verzeichnis statt Datei), ha-ga jetzt `up` (27.03.2026)
+- [ ] Erste Entitäten (Licht, Sensoren GA/Garage) einrichten
+
 ### haos-ug (Erweiterungen)
-- [-] Energie-Dashboard einrichten (Strommeter `sensor.strommeter_main_value`)
+- [x] HA Core erreichbar (8123 OPEN, 27.03.2026 nach Backup-Incident Wiederherstellung)
+- [x] Energie-Dashboard einrichten (Strommeter `sensor.strommeter_main_value`) – `.storage/energy` korrigiert: Grid auf `strommeter_main_value`, Solar auf Solarman `192_168_188_88/97_total_production` (27.03.2026)
 - [x] Keycloak SSO integrieren (`hass-oidc-auth`, BrainHome SSO Button aktiv)
-- [ ] Grafana-Anbindung für Sensor-Daten
+- [x] Grafana-Anbindung für Sensor-Daten (Prometheus scrapet ha-ug: 501 Entities, Energy-Dashboard deployt 27.03.2026)
+- [x] Zigbee-USB Passthrough gesetzt (`usb2: host=10c4:ea60,usb3=1`) auf VM106/proxmox-ug (27.03.2026)
+- [x] **Bluetooth Integration** eingerichtet: hci0 Intel AX210 `AC:45:EF:A2:81:85`, entry `01KMQ6HEN6MKR8WMCX1T4NSHKM`, state `loaded` (27.03.2026)
 
 ### ☀️ Solaranlage & Autarkie (haos-ug)
 - [x] Solarman-Integration: davidrapan v25.08.16 migriert (15.03.2026)
 - [x] `/home/autarkie/` Workspace-Ordner angelegt (Docs, Scripts, Daten)
 - [x] **Solarman Cloud API**: APP_ID + APP_SECRET eintragen → `solarman-api.env` (bereits vorhanden, März 2026)
-- [ ] **Historische Daten laden**: `python3 /home/autarkie/scripts/fetch-solarman-cloud.py --start 2023-01-01 --sync-nas`
-- [ ] **HA Statistics importieren**: `python3 /home/autarkie/scripts/import-ha-statistics.py --all`
-- [ ] `_2`-Duplikat-Entities auf HA-Master bereinigen
+- [x] **Historische Daten laden**: `fetch-solarman-cloud.py --start 2023` – Süd: 2150 kWh, West: 1642 kWh (34 Monate je, 2023-06 bis 2026-03) in `/home/autarkie/data/cloud/` (27.03.2026)
+- [x] **HA Statistics importieren**: `import-ha-statistics.py` – 68 Datenpunkte in `sensor.192_168_188_88/97_total_production` via WebSocket recorder/import_statistics (27.03.2026); ENTITY_MAP auf neue Solarman-Sensor-IDs aktualisiert
+- [x] `_2`-Duplikat-Entities auf HA-Master bereinigen – entity_filters auf alle 4 RHA-Verbindungen angewandt, 1108 verwaiste Registry-Einträge entfernt, True-Dups von 161–336 → 29 reduziert (26.03.2026, Details: ERLERNTES-WISSEN.md §15)
+- [x] **ha-eg**: Rolladen-Duplikate behoben – 56 veraltete Registry-Einträge (alte Z2M-Kurzname-Entities vor dem Umbenennen) auf ha-eg + 53 weitergeleitete auf ha-master gelöscht; `automation`-Domain zu ha-eg exclude_domains hinzugefügt (27.03.2026)
+- [x] **ha-og**: Küchenlicht-Duplikat behoben – `switch.og_kuche_deckenlicht` war stale Z2M-Rename-Relikt (uid=`3_switch_zigbee2mqtt`), auf ha-og + ha-master gelöscht (27.03.2026)
+- [x] **ha-ug**: Solarman `_2/_3`-Entities sind **False Positives** – `sensor.*_today/total_production_2/3` sind MPPT-Tracker-Entities (MPPT 2, MPPT 3), nicht echte Duplikate; kein Fix nötig
+- [x] **ha-master**: Template-Konflikt `sensor.fenster_2` behoben – `name: Fenster` in `templates/wohnzimmer.yaml` → `name: EG Wohnzimmer Fenster` umbenannt, Registry-Eintrag gelöscht (27.03.2026)
+- [x] **ha-og**: `switch.og_kuche_deckenlicht_2` behoben – Ursache war Z2M-Gruppe (Group 3 `og_küche_deckenlicht`) + physikalisches Gerät mit identischem Namen; Gruppe via Z2M MQTT API zu `og_küche_deckenlicht_gruppe` umbenannt, Registry auf ha-og + ha-master bereinigt (27.03.2026)
 
 ### Zigbee
-- [ ] Zigbee2MQTT Container einrichten
-- [ ] Sonoff Coordinator anschließen und konfigurieren
-- [ ] Erste Geräte anlernen (Buttons, Sensoren)
-- [ ] Integration in HA-UG / HA-EG
+- [x] Zigbee-Dongle an ha-ug durchgereicht (Sonoff/CP210x `10c4:ea60`, VM106 `usb2`) (27.03.2026)
+- [x] MQTT (Mosquitto broker) läuft auf ha-ug: Integration `loaded` (27.03.2026)
+- [ ] **Zigbee2MQTT Addon auf ha-ug einrichten** — Dongle `/dev/ttyUSB0` (Sonoff CP210x) bereit; Z2M Addon über Supervisor installieren + serial port `/dev/ttyUSB0` konfigurieren (wie ha-og/ha-eg)
 
 ### MQTT (dediziert)
 - [ ] Separaten Mosquitto-Container anlegen (aktuell: HA Add-On)
@@ -113,7 +153,7 @@
 - [x] Proxmox-Metriken scrapen (node-exporter auf allen 4 Nodes aktiv)
 - [x] Grafana Container anlegen + Datasource konfigurieren
 - [x] Dashboard: Server CPU / RAM / Temp (Temperatur-Section in proxmox.json, Provisioning-Fix, SSO-Fix)
-- [ ] Dashboard: Energie (Strommeter)
+- [x] Dashboard: Energie (Strommeter + Solaranlage + Heizkessel — 20 Panels, deployt 2026-04)
 - [x] Grafana mit Keycloak SSO verbinden (SSO aktiv → `grafana.brain` via Keycloak)
 
 ### Nextcloud
@@ -181,11 +221,137 @@
 
 - [x] ThinkCentre EG → proxmox-eg (192.168.188.253) **aktiv** ✅
 - [x] ThinkCentre OG → proxmox-og (192.168.188.252) **aktiv** ✅
-- [ ] ThinkCentre WS kaufen / einrichten → proxmox-ws
+- [x] ThinkCentre WS → proxmox-ws (192.168.188.247) **aktiv** ✅ (hostet ha-master VM101, grafana VM219, brainhome-workstation VM113)
 - [ ] ThinkCentre SE kaufen / einrichten → proxmox-se (Edge/Router)
 - [x] Proxmox Cluster `brainhome-cluster` aktiv (4 Nodes)
-- [ ] Storage: ZFS auf den Nodes
-- [ ] PBS (Proxmox Backup Server) VM einrichten
+- [ ] Storage: ZFS auf den Nodes (→ wird durch proxmox-dt gelöst, TICKET DT0001)
+- [ ] PBS (Proxmox Backup Server) VM einrichten (→ auf proxmox-dt, TICKET DT0001)
+
+### proxmox-dt: Daten-/Storage-Server (TICKET `DT0001`) — kommt ~29.03.2026
+
+> Geplante Inbetriebnahme: übermorgen (~29.03.2026)
+> Rolle: Shared Storage + Nextcloud + PBS + Fileserver — **kein** Rechen-/AI-Server
+
+**Aufgaben von proxmox-dt:**
+- NFS-Shares ersetzen (aktuell: NAS als `shared-storage`, `backup-daily`, `backup-monthly`)
+- Proxmox Backup Server (PBS) — dedizierte Backups aller Nodes/VMs/CTs mit Versionierung
+- Nextcloud — Dateisync, Webzugriff, Familienfreigaben
+- Fileserver — NFS + SMB zentral für BrainHome
+
+**Geplante VMs/CTs auf proxmox-dt:**
+| CT/VM | Dienst             | Storage-Bedarf         | Prio |
+|-------|--------------------|------------------------|------|
+| VM1   | Nextcloud           | SSD (schnell) + HDD (Daten) | hoch |
+| VM2   | Proxmox Backup Server (PBS) | große HDD-Pool (ZFS) | hoch |
+| CT3   | Fileserver (NFS+SMB)| HDD-Pool               | hoch |
+| CT4   | Hilfsdienste (rsync, cron) | klein | niedrig |
+
+**Storage-Architektur proxmox-dt (empfohlen):**
+
+**Benötigter Storage-Typ: ZFS**
+- Warum ZFS?
+  - Daten-Integrität via Checksummen (CoW) — ideal für Backup-Server und Nextcloud
+  - Snapshot-Support nativ → PBS profitiert direkt
+  - RAID-ähnliche Redundanz (RAIDZ1/2) ohne Hardware-RAID
+  - Kompression + Deduplizierung → spart Platz bei PBS
+  - Scrub → automatische Fehlererkennung im Hintergrund
+
+**Empfohlenes ZFS-Layout:**
+```
+SSD-Pool (mirror oder single):          # schnell
+  → Proxmox OS (root)
+  → VM-Disks (Nextcloud-VM, PBS-VM)
+  → CT-Disks
+
+HDD-Pool RAIDZ1 oder mirror:            # groß
+  → PBS Datastore (/var/lib/proxmox-backup/datastore/)
+  → Nextcloud-Daten (/data)
+  → NFS/SMB Freigaben
+  → (optional) Archiv-Medien
+```
+
+**Mindest-Ausstattung (Empfehlung):**
+- 2× SSD (mind. 256GB, mirror) → OS + VM-Disks
+- 2–4× HDD (mind. 2TB, RAIDZ1 bei 3-4 Stück oder mirror bei 2) → Daten/Backup
+- RAM: mind. 16GB (ZFS mag RAM — ARC-Cache)
+
+**Verzahnung mit B4CK01 (LXC-Migration):**
+- Sobald proxmox-dt läuft und PBS aktiv ist:
+  - Backup-Jobs aller Nodes von vzdump-NFS → PBS umstellen
+  - PBS kennt Snapshots nativ → kein NFS-Suspend-Problem mehr
+  - `shared-storage` NFS kann dann aufgeräumt/ersetzt werden
+
+**Nächste Schritte (nach Anlieferung proxmox-dt):**
+- [ ] Proxmox auf proxmox-dt installieren
+- [ ] ZFS-Pools anlegen (SSD + HDD)
+- [ ] proxmox-dt in `brainhome-cluster` aufnehmen
+- [ ] PBS VM anlegen und Datastores konfigurieren
+- [ ] Backup-Jobs aller Nodes auf PBS umstellen (löst B4CK01 langfristig)
+- [ ] Nextcloud CT/VM anlegen
+- [ ] NFS/SMB Fileserver CT anlegen
+- [ ] DNS-Eintrag: `dt.brain`, `nextcloud.brain`, `backup.brain`
+
+### Backup-Konzept optimieren: LXC auf lvmthin migrieren (TICKET `B4CK01`)
+
+> Erstellt: 27.03.2026 | Auslöser: CT117 (caddy-eg) Suspend-Lock → 502 Bad Gateway auf ha-ug/og/eg
+
+**Problem (Root Cause):**
+- Alle LXC-Container liegen auf `shared-storage` (NFS) → kein Snapshot-Support
+- vzdump konfiguriert mit `mode snapshot` → fällt bei NFS **automatisch auf `suspend` zurück**
+- Suspend friert Keepalived ein → VRRP Failover funktioniert nicht → Caddy-Backup übernimmt VIP nicht
+- Heutige Auswirkung: ha-ug, ha-og, ha-eg ~4h lang nicht erreichbar (03:00–07:20 Uhr)
+
+**Analyse — alle LXC-Container:**
+| Node       | CTID | Name          | Storage        | Snapshot möglich? |
+|------------|------|---------------|----------------|-------------------|
+| proxmox-ug | 100  | pihole        | shared-storage (NFS) | ❌ |
+| proxmox-ug | 110  | caddy         | shared-storage (NFS) | ❌ → MASTER VIP |
+| proxmox-ug | 116  | brainhome-prod| shared-storage (NFS) | ❌ |
+| proxmox-ug | 130  | pxe-stack     | shared-storage (NFS) | ❌ |
+| proxmox-og | 111  | pihole-og     | shared-storage (NFS) | ❌ |
+| proxmox-og | 120  | caddy-og      | shared-storage (NFS) | ❌ → BACKUP VIP |
+| proxmox-eg | 114  | pihole-eg     | shared-storage (NFS) | ❌ |
+| proxmox-eg | 117  | caddy-eg      | shared-storage (NFS) | ❌ → eg/og/ug Proxy |
+
+**Lösung (Umsetzungsplan):**
+
+- [ ] **Phase 1: Infrastruktur** — LXC-Storage auf `local-lvm` (lvmthin) pro Node umstellen
+  - Alle 3 Nodes haben bereits `local-lvm` (lvmthin) — Snapshot-fähig ✅
+  - Caddy + Pihole CTs von NFS auf lvmthin migrieren (Disk-Move via Proxmox UI oder `qm/pct move-disk`)
+  - Priorität: CT110 (caddy/proxmox-ug), CT117 (caddy-eg), CT120 (caddy-og), CT100/111/114 (pihole)
+
+- [ ] **Phase 2: Verifikation** — Snapshot-Backup testen
+  - Nach Migration: `vzdump <ctid> --mode snapshot --storage backup-daily` manuell ausführen
+  - Prüfen: kein `Lock: backup` mehr → Keepalived läuft durch
+
+- [ ] **Phase 3: Backup-Zeitplan staffeln** (sofort umsetzbar, unabhängig von Phase 1)
+  - Principle: Nie alle 3 Caddy-Instanzen gleichzeitig backuppen
+  - Staffelung vorschlagen:
+    - `03:00` → proxmox-ug (CT110 caddy MASTER) — ok, BACKUP übernimmt
+    - `03:30` → proxmox-og (CT120 caddy-og)
+    - `04:00` → proxmox-eg (CT117 caddy-eg)
+  - Analog für Pi-hole: 03:15 / 03:45 / 04:15
+
+- [ ] **Phase 4: Sofort-Maßnahmen (heute umsetzbar)**
+  - Backup-Window auf 1 Container pro Node pro Nacht beschränken
+  - Für die Caddy-CTs zuerst nur `CT110`, `CT120` und `CT117` einzeln testen
+  - Vor dem Backup: `pct status <ctid>` prüfen; nur ausführen, wenn kein `backup`-Lock aktiv ist
+  - Nach dem Backup: `pct list | grep <ctid>` prüfen, `systemctl status keepalived` auf den Caddy-Hosts verifizieren
+  - Falls das Backup wieder zu `suspend` führt: zuerst `vzdump <ctid> --mode stop --compress zstd --storage backup-daily` testen und danach mit `--mode snapshot` vergleichen
+  - Falls `stop` zu teuer oder zu störend ist: Backup-Window temporär auf `04:30+` verschieben und nur ein CT pro Knoten behandeln
+
+- [ ] **Phase 5: Keepalived Freeze-Workaround** (falls Phase 1 nicht sofort möglich)
+  - In der vorhandenen Proxmox-Umgebung (PVE 9.2.10) ist `--nofreeze` nicht verfügbar; deshalb auf `--mode stop` oder auf gestaffelte Backups ausweichen
+  - Alternativ: pre/post-backup Hook der Keepalived stoppt+startet (riskant)
+  - Notfall-Plan: Backup nur nachts außerhalb der Haupt-HA-Window-Zeiten und mit manueller Verifikation der VIP-Failover-Status ausführen
+  - Hilfsskript: [tools/bin/proxmox-backup-check.sh](tools/bin/proxmox-backup-check.sh) für schnelle Lock-/Storage-/Backup-Checks vor dem Backup-Start
+
+**Akzeptanzkriterien:**
+- CT117 Backup läuft ohne `Lock: backup` → Keepalived sendet weiter → caddy-og übernimmt VIP
+- HA-Instanzen bleiben während Backup-Window erreichbar
+- `pct list` zeigt nach Backup kein `backup`-Lock mehr bei Caddy-Containern
+
+---
 
 ### PXE / Netzwerk-Boot fuer Node-Provisionierung (TICKET `3D9708`)
 - [x] PXE-Server auf dediziertem LXC `CT130` (`pxe-stack`) aufgebaut (`dnsmasq` + `tftp` + `iPXE`)
@@ -205,6 +371,8 @@
 - [x] Proxmox proxmox-dev aufgesetzt (Tower, 192.168.188.254, ehemals proxmox-ug)
 - [x] Proxmox proxmox-eg aufgesetzt (192.168.188.253) — JDK 17, Python venv, SSH Config ✅
 - [x] HA MASTER: remote_homeassistant → EG/OG/UG alle connected, 1380+ Entities aggregiert ✅
+- [x] ha-eg IP-Fix `.148` → `.194` via REST-API (zeroconf-Flow, 26.03.2026) ✅
+- [x] ha-ga als Remote Node eingerichtet + zu ha-master verbunden (26.03.2026, Entry `01KMNT0F2Y5Y0R5J3H802V0NNB`) ✅
 - [x] VS Code Dev-Setup auf proxmox-dev + proxmox-eg (JDK 17, venv, SSH Shortcuts) ✅
 - [x] BrainHome.code-workspace erstellt — alle Ordner + 20 Tasks (HA Pull/Push/SSH + Infra-Terminals) ✅
 - [x] haos-ug deployt und aktiv (192.168.188.145)
@@ -226,7 +394,7 @@
 
 ---
 
-*Letzte Aktualisierung: 26. März 2026*
+*Letzte Aktualisierung: 27. März 2026 (Morgen – USB Passthrough Zigbee/BT ha-ug/og/eg)*
 
 ---
 

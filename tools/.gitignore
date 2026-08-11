@@ -1,0 +1,41 @@
+# BrainHome Tools .gitignore
+
+# State files (generated, not versioned)
+logs/
+*.lock
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
+*.backup
+
+# --- BrainHome local/generated artifacts ---
+*.log
+*.log.*
+logs/
+.cache/
+*.tmp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# VS Code local state (keep shared recommendations/settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/brainhome-api.http

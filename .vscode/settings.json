@@ -15,6 +15,7 @@
     "**/*.db",
     "**/*.db-shm",
     "**/*.db-wal",
+    "haos-configs/**",
     "proxmox-*/**/module/**",
     "proxmox-*/**/source/haos*/**",
     "proxmox-ws/ct/brainhome-dev/source/**",
@@ -28,6 +29,7 @@
     "**/__pycache__/**": true,
     "**/logs/**": true,
     "**/backups/**": true,
+    "haos-configs/**": true,
     "**/*.db*": true
   },
   "search.exclude": {
@@ -37,6 +39,7 @@
     "**/__pycache__": true,
     "**/logs": true,
     "**/backups": true,
+    "haos-configs": true,
     "proxmox-*/**/module": true
   }
 }

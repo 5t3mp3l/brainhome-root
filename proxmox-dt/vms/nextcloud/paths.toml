@@ -1,0 +1,13 @@
+schema = 1
+
+[module]
+name = "nextcloud"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-dt"
+vm_id = 121
+address = "192.168.188.121"
+live_name = "nextcloud-core"
+service_type = "nextcloud"

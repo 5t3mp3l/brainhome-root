@@ -1,0 +1,16 @@
+# Path manifest schema v1 for the electricity meter submodule.
+
+schema = 1
+
+[module]
+name = "strommeter"
+repository_root = "."
+
+[repository]
+scripts = "scripts"
+docs = "docs"
+
+[workspace]
+parent = ".."
+sibling_gasmeter = "../gasmeter"
+workspace_file = "strommeter.code-workspace"

@@ -1,0 +1,42 @@
+{
+  "python.analysis.exclude": [
+    "**/.git/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/node_modules/**",
+    "**/.gradle/**",
+    "**/__pycache__/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/logs/**",
+    "**/backups/**",
+    "**/.monitor-state/**",
+    "**/*.pyc",
+    "**/*.db",
+    "**/*.db-shm",
+    "**/*.db-wal",
+    "proxmox-*/**/module/**",
+    "proxmox-*/**/source/haos*/**",
+    "proxmox-ws/ct/brainhome-dev/source/**",
+    "proxmox-ug/ct/brainhome-prod/source/**"
+  ],
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/logs/**": true,
+    "**/backups/**": true,
+    "**/*.db*": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/logs": true,
+    "**/backups": true,
+    "proxmox-*/**/module": true
+  }
+}

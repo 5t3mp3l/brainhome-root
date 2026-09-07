@@ -1,0 +1,15 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-inventory - Central infrastructure inventory CLI
+#
+# Usage:
+#   brainhome-inventory refresh
+#   brainhome-inventory show --section guests
+#   brainhome-inventory export-md
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+exec python3 "$TOOLS_ROOT/lib/inventory-manager.py" "$@"

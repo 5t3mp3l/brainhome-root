@@ -1,0 +1,296 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-status — Global BrainHome Health Dashboard
+#
+# Shows module registry plus aggregated log health and freshness.
+#
+# Usage:
+#   brainhome-status [--refresh-logs] [--lines N] [--json] [--no-discover]
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+MODULES_JSON="$TOOLS_ROOT/config/modules.json"
+LOGS_ROOT="$TOOLS_ROOT/logs/modules"
+REGISTRY_TTL=300
+
+BOLD='\033[1m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+DO_REFRESH=false
+SKIP_DISCOVERY=false
+JSON_OUTPUT=false
+DO_SMOKE=false
+DO_STRICT_SMOKE=false
+LINES=120
+
+header() { echo -e "\n${BOLD}${CYAN}$*${NC}\n"; }
+info() { echo "[INFO] $*" >&2; }
+err() { echo "[ERR] $*" >&2; }
+
+parse_args() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --refresh-logs)
+        DO_REFRESH=true
+        ;;
+      --smoke)
+        DO_SMOKE=true
+        ;;
+      --strict-smoke)
+        DO_SMOKE=true
+        DO_STRICT_SMOKE=true
+        ;;
+      --no-discover)
+        SKIP_DISCOVERY=true
+        ;;
+      --json)
+        JSON_OUTPUT=true
+        ;;
+      --lines)
+        LINES="${2:-}"
+        shift
+        ;;
+      --help|-h)
+        cat << 'EOF'
+Usage: brainhome-status [options]
+
+Options:
+  --refresh-logs   Run centralized log collection before dashboard
+  --smoke          Run live devctl-status check and add Status column
+  --strict-smoke   Run strict smoketest (status + collect-logs) for Status column
+  --lines N        Number of lines to collect per service (default: 120)
+  --json           Emit machine-readable JSON dashboard data
+  --no-discover    Skip module rediscovery (use existing registry)
+  --help           Show this help
+EOF
+        exit 0
+        ;;
+      *)
+        err "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
+  if ! [[ "$LINES" =~ ^[0-9]+$ ]]; then
+    err "--lines must be numeric"
+    exit 1
+  fi
+}
+
+ensure_registry() {
+  if [ "$SKIP_DISCOVERY" = true ]; then
+    return 0
+  fi
+
+  if [ ! -f "$MODULES_JSON" ] || [ $(( $(date +%s) - $(stat -c %Y "$MODULES_JSON" 2>/dev/null || echo 0) )) -gt $REGISTRY_TTL ]; then
+    info "Registry stale or missing; running discovery"
+    python3 "$TOOLS_ROOT/lib/module-discovery.py" discover --no-cache >/dev/null 2>&1 || true
+  fi
+}
+
+# Runs brainhome smoketest --skip-logs and returns a temp JSON path.
+# Prints path to stdout; caller must rm the file.
+run_smoke_json() {
+  local tmp
+  tmp=$(mktemp /tmp/brainhome-smoke-XXXXXX.json)
+  local smoke_cmd=("$TOOLS_ROOT/bin/brainhome" smoketest all --timeout 30 --lines "$LINES" --json)
+  if [ "$DO_STRICT_SMOKE" = true ]; then
+    smoke_cmd+=(--strict)
+  else
+    smoke_cmd+=(--skip-logs)
+  fi
+  if "${smoke_cmd[@]}" > "$tmp" 2>/dev/null; then
+    true
+  fi
+  echo "$tmp"
+}
+
+# Look up smoke status for a module from a JSON file.
+# Prints: ok|fail|unknown
+smoke_status_for() {
+  local module="$1"
+  local smoke_json="$2"
+  if [ -z "$smoke_json" ] || [ ! -f "$smoke_json" ]; then
+    echo "unknown"
+    return
+  fi
+  local ok
+  if [ "$DO_STRICT_SMOKE" = true ]; then
+    ok=$(jq -r --arg m "$module" '.modules[] | select(.module == $m) | if .ok then "ok" else "fail" end' "$smoke_json" 2>/dev/null || echo "unknown")
+  else
+    ok=$(jq -r --arg m "$module" '.modules[] | select(.module == $m) | if .status.ok then "ok" else "fail" end' "$smoke_json" 2>/dev/null || echo "unknown")
+  fi
+  echo "${ok:-unknown}"
+}
+
+calc_health_fields() {
+  local module="$1"
+  local now="$2"
+  local module_dir="$LOGS_ROOT/$module"
+  local log_count=0
+  local last_ts=0
+  local age_min=-1
+  local health="missing"
+
+  if [ -d "$module_dir" ]; then
+    log_count=$(find "$module_dir" -maxdepth 1 -type f -name '*.log' 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$log_count" -gt 0 ]; then
+      last_ts=$(find "$module_dir" -maxdepth 1 -type f -name '*.log' -printf '%T@\n' 2>/dev/null | sort -nr | head -1 | cut -d'.' -f1)
+      if [ -n "$last_ts" ] && [ "$last_ts" -gt 0 ] 2>/dev/null; then
+        age_min=$(( (now - last_ts) / 60 ))
+      fi
+    fi
+  fi
+
+  if [ "$log_count" -eq 0 ]; then
+    health="missing"
+  elif [ "$age_min" -ge 0 ] && [ "$age_min" -le 15 ]; then
+    health="healthy"
+  elif [ "$age_min" -ge 0 ] && [ "$age_min" -le 120 ]; then
+    health="stale"
+  else
+    health="old"
+  fi
+
+  printf '%s;%s;%s;%s\n' "$log_count" "$last_ts" "$age_min" "$health"
+}
+
+render_table() {
+  local now
+  now=$(date +%s)
+
+  local smoke_json=""
+  if [ "$DO_SMOKE" = true ]; then
+    if [ "$DO_STRICT_SMOKE" = true ]; then
+      info "Running live strict smoke checks (--strict-smoke)..."
+    else
+      info "Running live status checks (--smoke)..."
+    fi
+    smoke_json=$(run_smoke_json)
+  fi
+
+  header "BrainHome Health Dashboard"
+  if [ "$DO_SMOKE" = true ]; then
+    printf "  %-20s %-11s %-10s %-8s %-7s %-8s %-8s %s\n" "Module" "Type" "Container" "Status" "Logs" "Age(min)" "Health" "Path"
+    printf "  %-20s %-11s %-10s %-8s %-7s %-8s %-8s %s\n" "------" "----" "---------" "------" "----" "--------" "------" "----"
+  else
+    printf "  %-20s %-11s %-10s %-7s %-8s %-8s %s\n" "Module" "Type" "Container" "Logs" "Age(min)" "Health" "Path"
+    printf "  %-20s %-11s %-10s %-7s %-8s %-8s %s\n" "------" "----" "---------" "----" "--------" "------" "----"
+  fi
+
+  local healthy=0
+  local stale=0
+  local missing=0
+  local old=0
+
+  while IFS=';' read -r name module_type container_type path; do
+    local fields
+    fields=$(calc_health_fields "$name" "$now")
+    local log_count last_ts age_min health
+    IFS=';' read -r log_count last_ts age_min health <<< "$fields"
+
+    local health_plain
+    health_plain=$(printf "%-8s" "$health")
+    local health_col="$health_plain"
+    case "$health" in
+      healthy)
+        health_col="${GREEN}${health_plain}${NC}"
+        healthy=$((healthy + 1))
+        ;;
+      stale)
+        health_col="${YELLOW}${health_plain}${NC}"
+        stale=$((stale + 1))
+        ;;
+      old)
+        health_col="${RED}${health_plain}${NC}"
+        old=$((old + 1))
+        ;;
+      *)
+        health_col="${RED}${health_plain}${NC}"
+        missing=$((missing + 1))
+        ;;
+    esac
+
+    local smoke_col=""
+    if [ "$DO_SMOKE" = true ]; then
+      local sst
+      sst=$(smoke_status_for "$name" "$smoke_json")
+      # Pre-pad to fixed width so ANSI codes don't skew terminal alignment
+      local sst_padded
+      sst_padded=$(printf "%-6s" "$sst")
+      case "$sst" in
+        ok)      smoke_col="${GREEN}${sst_padded}${NC}" ;;
+        fail)    smoke_col="${RED}${sst_padded}${NC}" ;;
+        *)       smoke_col="${YELLOW}${sst_padded}${NC}" ;;
+      esac
+    fi
+
+    if [ "$DO_SMOKE" = true ]; then
+      printf "  ${CYAN}%-20s${NC} %-11s %-10s %b %-7s %-8s %b %s\n" \
+        "$name" "$module_type" "$container_type" "$smoke_col" "$log_count" "$age_min" "$health_col" "$path"
+    else
+      printf "  ${CYAN}%-20s${NC} %-11s %-10s %-7s %-8s %b %s\n" \
+        "$name" "$module_type" "$container_type" "$log_count" "$age_min" "$health_col" "$path"
+    fi
+  done < <(jq -r '.modules | to_entries[] | "\(.value.name);\(.value.module_type);\(.value.container.type // "local");\(.value.path)"' "$MODULES_JSON")
+
+  echo
+  printf "  %b total=%s healthy=%s stale=%s old=%s missing=%s%b\n" "$BOLD" "$(jq -r '.count // 0' "$MODULES_JSON")" "$healthy" "$stale" "$old" "$missing" "$NC"
+
+  [ -n "$smoke_json" ] && rm -f "$smoke_json" || true
+}
+
+render_json() {
+  local now
+  now=$(date +%s)
+
+  local smoke_json=""
+  if [ "$DO_SMOKE" = true ]; then
+    smoke_json=$(run_smoke_json)
+  fi
+
+  jq -r '.modules | to_entries[] | "\(.value.name);\(.value.module_type);\(.value.container.type // "local");\(.value.path)"' "$MODULES_JSON" | \
+  while IFS=';' read -r name module_type container_type path; do
+    local fields
+    fields=$(calc_health_fields "$name" "$now")
+    local log_count last_ts age_min health
+    IFS=';' read -r log_count last_ts age_min health <<< "$fields"
+    local sst
+    sst=$(smoke_status_for "$name" "$smoke_json")
+    jq -n --arg name "$name" --arg module_type "$module_type" --arg container_type "$container_type" --arg path "$path" --argjson log_count "$log_count" --argjson last_ts "$last_ts" --argjson age_min "$age_min" --arg health "$health" --arg smoke_status "$sst" '{name:$name,module_type:$module_type,container_type:$container_type,path:$path,log_count:$log_count,last_log_ts:$last_ts,last_log_age_min:$age_min,health:$health,smoke_status:$smoke_status}'
+  done | jq -s --arg ts "$(date -Iseconds)" --argjson smoke "$DO_SMOKE" --argjson strict_smoke "$DO_STRICT_SMOKE" '{timestamp:$ts,smoke_checked:$smoke,strict_smoke:$strict_smoke,modules:.,count:(length)}'
+
+  [ -n "$smoke_json" ] && rm -f "$smoke_json" || true
+}
+
+main() {
+  parse_args "$@"
+  ensure_registry
+
+  if [ ! -f "$MODULES_JSON" ]; then
+    err "No modules discovered"
+    exit 1
+  fi
+
+  if [ "$DO_REFRESH" = true ]; then
+    info "Refreshing centralized logs (lines=$LINES)"
+    "$TOOLS_ROOT/lib/log-collector.sh" all "$LINES" >&2 || true
+  fi
+
+  if [ "$JSON_OUTPUT" = true ]; then
+    render_json
+  else
+    render_table
+  fi
+}
+
+main "$@"

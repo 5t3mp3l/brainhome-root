@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "openwrt-ug"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ug"
+vm_id = 119
+address = "192.168.188.150"
+service_type = "openwrt"

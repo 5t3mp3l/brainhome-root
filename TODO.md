@@ -146,8 +146,8 @@
 ## 🟡 Prio 3 – Services & Monitoring
 
 ### Grafana + Prometheus
-- [x] **TICKET BH-GRAFANA-001**: Grafana Workspace-Geruest unter `/home/grafana/` erstellt (README, TODO, docker, config, scripts, docs)
-- [x] VM `monitoring.brain` (192.168.188.108, VM-ID 118) angelegt und Stack deployed (`/home/grafana/scripts/deploy.sh start`)
+- [x] **TICKET BH-GRAFANA-001**: Grafana Workspace-Geruest unter `${BRAINHOME_ROOT}/grafana/` erstellt (README, TODO, docker, config, scripts, docs)
+- [x] VM `monitoring.brain` (192.168.188.108, VM-ID 118) angelegt und Stack deployed (`${BRAINHOME_ROOT}/grafana/scripts/deploy.sh start`)
 - [x] Prometheus Container anlegen
 - [x] Node Exporter auf proxmox, proxmox-eg, proxmox-og, proxmox-ug installieren
 - [x] Proxmox-Metriken scrapen (node-exporter auf allen 4 Nodes aktiv)
@@ -157,8 +157,8 @@
 - [x] Grafana mit Keycloak SSO verbinden (SSO aktiv → `grafana.brain` via Keycloak)
 
 ### Nextcloud
-> Workspace: `/home/nextcloud/` | Repo: https://github.com/5t3mp3l/nextcloud
-- [x] VM 121 angelegt auf proxmox-dev (4 GB RAM, 100 GB, IP: 192.168.188.121) 2026-03-21
+> Workspace: `${BRAINHOME_ROOT}/nextcloud/` | Repo: https://github.com/5t3mp3l/nextcloud
+- [x] VM 121 angelegt auf proxmox-dt (4 GB RAM, 100 GB, IP: 192.168.188.121) 2026-03-21
 - [x] Docker Compose Stack deployed: Nextcloud 29.0.16 + PostgreSQL 16 + Redis 7 + Collabora
 - [x] Caddy-Route: `nextcloud.brain` → 192.168.188.121:80 (mit Security-Headern)
 - [x] Caddy-Route: `office.brain` → 192.168.188.121:9980
@@ -209,6 +209,10 @@
 
 - [ ] Frigate Container einrichten (proxmox-ws oder proxmox-dev)
 - [ ] Coral TPU oder GPU für Frigate konfigurieren
+  - [ ] Host `proxmox-dt`: BIOS/UEFI AMD-IOMMU/Virtualization aktivieren
+  - [ ] Host neu starten und IOMMU/VFIO verifizieren (`dmesg | grep -iE 'DMAR|IVRS|IOMMU'`, `ls /sys/kernel/iommu_groups`)
+  - [ ] Coral-VM `coral-ai` mit PCI-Passthrough für `07:00.0` testen
+  - [ ] Guest: EdgeTPU/Frigate-Setup im Ubuntu-VM prüfen
 - [ ] Erste Kamera anbinden
 - [ ] Person-Detection testen
 - [ ] Frigate → HA Integration

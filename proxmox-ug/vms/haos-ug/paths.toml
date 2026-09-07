@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "haos-ug"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ug"
+vm_id = 106
+address = "192.168.188.152"
+service_type = "home-assistant"

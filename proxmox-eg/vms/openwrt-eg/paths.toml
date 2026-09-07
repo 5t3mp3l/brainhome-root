@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "openwrt-eg"
+repository_root = "."
+source_module = "../../../proxmox-ug/vms/openwrt-ug/source"
+
+[placement]
+node = "proxmox-eg"
+vm_id = 108
+address = "192.168.188.149"
+service_type = "openwrt"

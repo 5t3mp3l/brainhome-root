@@ -1,0 +1,14 @@
+schema = 1
+
+[module]
+name = "brainhome-prod"
+repository_root = "."
+source_module = "../../../../webserver"
+workspace_classification = "independent-checkout"
+
+[placement]
+node = "proxmox-ug"
+container_id = 116
+address = "192.168.188.116"
+live_name = "brainhome-prod"
+service_type = "webserver-production"

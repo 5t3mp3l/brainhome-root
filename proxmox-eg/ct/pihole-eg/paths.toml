@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "pihole-eg"
+repository_root = "."
+source_module = "../../../proxmox-ug/ct/pihole/source"
+
+[placement]
+node = "proxmox-eg"
+container_id = 114
+address = "192.168.188.245"
+service_type = "pihole"

@@ -1,0 +1,9 @@
+# Copy to paths.local.toml for user- or host-specific overrides.
+# paths.local.toml is intentionally ignored by Git.
+
+[workspace]
+# root_override = "/home/brain/brainhome-root"
+
+[compatibility]
+# Keep only temporary aliases during a planned migration.
+# legacy_workspace_root = "/home/brain/brainhome-root"

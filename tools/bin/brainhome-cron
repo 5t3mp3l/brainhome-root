@@ -30,6 +30,7 @@ from datetime import datetime
 TOOLS_ROOT   = Path(os.environ.get("TOOLS_ROOT", str(Path(__file__).resolve().parent.parent)))
 REGISTRY_FILE = TOOLS_ROOT / "config" / "cron-registry.json"
 SSH_KEY      = Path.home() / ".ssh" / "brainhome_ws"
+WORKSPACE_ROOT = TOOLS_ROOT.parent
 
 RESET  = "\033[0m"
 BOLD   = "\033[1m"
@@ -71,6 +72,11 @@ def ssh_run(host_ip: str, user: str, cmd: str, capture=True) -> tuple[int, str]:
 
 def cron_marker(job_id: str) -> str:
     return f"# brainhome-cron:{job_id}"
+
+
+def expand_workspace_root(value: str) -> str:
+    """Render a portable registry path for the current workspace checkout."""
+    return value.replace("${BRAINHOME_ROOT}", str(WORKSPACE_ROOT))
 
 
 def cmd_list(args: list[str]) -> None:
@@ -214,8 +220,8 @@ def cmd_deploy(args: list[str]) -> None:
         user     = job.get("host_user", "brain")
         marker   = cron_marker(job["id"])
         schedule = job["schedule"]
-        command  = job["command"]
-        log      = job.get("log", "/dev/null")
+        command  = expand_workspace_root(job["command"])
+        log      = expand_workspace_root(job.get("log", "/dev/null"))
         log_dir  = str(Path(log).parent)
 
         is_local = force_local or host_ip in local_ips or host_ip == "localhost"

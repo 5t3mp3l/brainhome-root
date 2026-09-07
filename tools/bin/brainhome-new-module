@@ -1,0 +1,11 @@
+#!/bin/bash
+# brainhome-new-module — scaffold .brainhome.yml in a target module path
+# Neues Modul anlegen + optional Discovery ausführen (→ modules.json aktualisieren)
+# Mit --discover wird das Modul automatisch in die Registry eingetragen.
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+
+exec python3 "$TOOLS_ROOT/lib/module-scaffold.py" "$@"

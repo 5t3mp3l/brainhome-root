@@ -1,0 +1,14 @@
+schema = 1
+
+[module]
+name = "brainhome-dev"
+repository_root = "."
+source_module = "../../../../webserver"
+workspace_classification = "independent-checkout"
+
+[placement]
+node = "proxmox-ws"
+container_id = 112
+address = "192.168.188.112"
+live_name = "brainhome-dev"
+service_type = "webserver-development"

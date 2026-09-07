@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Check or update canonical module mirrors in Proxmox node object directories.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/paths.sh"
+
+apply=false
+
+usage() {
+    cat <<'EOF'
+Usage: brainhome-proxmox-node-mirrors [--check|--apply]
+
+Checks the source/ mirror below each Proxmox VM/CT placement manifest.
+--check is read-only and exits 1 when a mirror differs from its source module.
+--apply synchronizes mirrors with rsync --delete inside each source/ directory.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --check) apply=false ;;
+        --apply) apply=true ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+command -v rsync >/dev/null || {
+    echo "Missing required command: rsync" >&2
+    exit 2
+}
+
+workspace_root="$(bh_path .)"
+mirror_count=0
+out_of_sync=0
+rsync_excludes=(
+    --exclude='.git/'
+    --exclude='.venv/'
+    --exclude='node_modules/'
+    --exclude='.gradle/'
+    --exclude='build/'
+    --exclude='dist/'
+    --exclude='logs/'
+    --exclude='backups/'
+    --exclude='__pycache__/'
+    --exclude='*.pyc'
+    --exclude='.monitor-state/'
+)
+
+while IFS=$'\t' read -r mirror_dir source_dir; do
+    [[ -n "$mirror_dir" && -n "$source_dir" ]] || continue
+    mirror_count=$((mirror_count + 1))
+    target_dir="${workspace_root}/${mirror_dir}/source"
+
+    if [[ "$apply" == true ]]; then
+        mkdir -p "$target_dir"
+        rsync -a --delete "${rsync_excludes[@]}" "${source_dir}/" "${target_dir}/"
+        printf 'SYNCED %s\n' "$mirror_dir"
+        continue
+    fi
+
+    if [[ -n "$(rsync -ani "${rsync_excludes[@]}" "${source_dir}/" "${target_dir}/")" ]]; then
+        printf 'OUT_OF_SYNC %s\n' "$mirror_dir"
+        out_of_sync=$((out_of_sync + 1))
+    else
+        printf 'IN_SYNC %s\n' "$mirror_dir"
+    fi
+done < <(python3 - "$workspace_root" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+for manifest in sorted(root.glob("proxmox-*/*/*/paths.toml")):
+    with manifest.open("rb") as stream:
+        data = tomllib.load(stream)
+    source_module = data.get("module", {}).get("source_module")
+    if source_module:
+        print(f"{manifest.parent.relative_to(root)}\t{(manifest.parent / source_module).resolve()}")
+PY
+)
+
+printf 'Mirrors checked: %d\n' "$mirror_count"
+if [[ "$out_of_sync" -gt 0 ]]; then
+    printf 'FAIL: %d mirror(s) differ from their source module.\n' "$out_of_sync" >&2
+    exit 1
+fi
+printf 'PASS: all Proxmox node module mirrors are in sync.\n'

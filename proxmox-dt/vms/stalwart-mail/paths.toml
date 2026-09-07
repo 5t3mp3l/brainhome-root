@@ -1,0 +1,32 @@
+# Path manifest schema v1 for Stalwart Mail on VM 105.
+
+schema = 1
+
+[service]
+name = "stalwart-mail"
+vm_id = 105
+host_node = "proxmox-dt"
+address = "192.168.188.124"
+
+[placement]
+node = "proxmox-dt"
+vm_id = 105
+address = "192.168.188.124"
+service_type = "stalwart-mail"
+
+[repository]
+root = "."
+compose = "docker-compose.yml"
+deploy_script = "scripts/deploy-stalwart.sh"
+
+[runtime]
+root = "/opt/stalwart-mail"
+data = "/opt/stalwart-mail/data"
+compose = "/opt/stalwart-mail/docker-compose.yml"
+certificates = "/opt/stalwart-mail/data/certs"
+
+[network]
+admin_url = "https://mail.brain"
+smtp_hostname = "smtp.brainhome.local"
+imap_hostname = "imap.brainhome.local"
+submission_port = 587

@@ -1,0 +1,3374 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-devctl — Unified Development Control for All Modules
+#
+# Routes commands to any module via container abstraction layer.
+# Supports: webserver (LXC), brainhome-platform (Docker), pxe-boot (LXC), etc.
+#
+# Two-tier architecture:
+#   Tier 1 (this script): status, logs, start, stop, restart — generic, all modules
+#   Tier 2 (module-local): any other command is delegated to <module>/tools/devctl.sh
+#
+# Usage:
+#   brainhome-devctl <module> <command> [options]
+#   brainhome-devctl                         # Shows available modules
+#   brainhome-devctl webserver status        # Module-specific status (Tier 1)
+#   brainhome-devctl webserver build-backend # Delegated to webserver/tools/devctl.sh (Tier 2)
+#   brainhome-devctl webserver build-frontend
+#   brainhome-devctl webserver start-backend
+#   brainhome-devctl webserver start-frontend
+#   brainhome-devctl webserver logs backend-dev
+#   brainhome-devctl webserver health
+#   brainhome-devctl webserver ports
+#   brainhome-devctl brainhome-platform up
+#
+# LXC process services: start_cmd in .brainhome.yml is used when type=process.
+#
+# Module shortcuts (auto-detected if in module dir):
+#   devctl <command>  → Detects current module and routes
+# =============================================================================
+
+set -euo pipefail
+
+# Colors
+BOLD='\033[1m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $*"; }
+log_warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error()   { echo -e "${RED}[ERR]${NC}  $*"; }
+header()      { echo -e "\n${BOLD}${CYAN}══╣ $* ${NC}\n"; }
+
+# PATHs — resolve from the executable location unless explicitly overridden.
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+MODULES_JSON="$TOOLS_ROOT/config/modules.json"
+
+# Dependency start state (used by start --with-deps)
+declare -A START_DONE
+declare -A START_STACK
+declare -A ORDER_DONE
+declare -A ORDER_STACK
+declare -a DEP_ORDER
+DEP_SILENT_WARN=0
+DEP_SILENT_CYCLE=0
+ORDER_FAILED=0
+
+# ─── Module Detection ─────────────────────────────────────────────────────────
+
+detect_module() {
+  # Auto-detect module name from current directory
+  if [ -f ".brainhome.yml" ]; then
+    jq -r '.name' .brainhome.yml 2>/dev/null || return 1
+  fi
+
+  # Check if we're inside a BrainHome module
+  for depth in 0 1 2; do
+    dir="$(pwd)"
+    for _ in $(seq 0 $depth); do
+      if [ -f "$dir/.brainhome.yml" ]; then
+        jq -r '.name' "$dir/.brainhome.yml" 2>/dev/null || true
+        return 0
+      fi
+      dir="$(dirname "$dir")"
+      [ "$dir" = "/" ] && break
+    done
+  done
+
+  return 1
+}
+
+# ─── Module Lookup ───────────────────────────────────────────────────────────
+
+get_module_info() {
+  local module="$1"
+  jq -r ".modules | select(. != null) | .\"$module\" // empty" "$MODULES_JSON" 2>/dev/null
+}
+
+get_module_path() {
+  local module="$1"
+  get_module_info "$module" | jq -r '. | select(. != null) | .path // ""'
+}
+
+get_module_type() {
+  local module="$1"
+  get_module_info "$module" | jq -r '.module_type // ""'
+}
+
+get_container_type() {
+  local module="$1"
+  get_module_info "$module" | jq -r '.container.type // "local"'
+}
+
+module_exists() {
+  local module="$1"
+  [ -f "$MODULES_JSON" ] && jq -e ".modules.\"$module\"" "$MODULES_JSON" >/dev/null 2>&1
+}
+
+get_module_dependencies() {
+  local module="$1"
+  jq -r ".modules.\"$module\".dependencies[]?" "$MODULES_JSON" 2>/dev/null
+}
+
+# ─── Container Execution ─────────────────────────────────────────────────────
+
+# Execute command in target container
+exec_in_container() {
+  local module="$1"
+  local cmd="$2"
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$ct_id" ]; then
+        log_error "Module $module: LXC ID not configured"
+        return 1
+      fi
+      log_info "→ Executing in LXC $ct_id"
+      pct exec "$ct_id" -- bash -c "$cmd"
+      ;;
+
+    docker)
+      local service
+      service=$(echo "$module_info" | jq -r '.container.service // ""')
+      if [ -z "$service" ]; then
+        log_info "→ Executing via docker compose"
+        cd "$(get_module_path "$module")" || return 1
+        docker compose exec -T "$service" bash -c "$cmd"
+      else
+        cd "$(get_module_path "$module")" || return 1
+        docker compose exec -T "$service" bash -c "$cmd"
+      fi
+      ;;
+
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$host" ]; then
+        log_error "Module $module: SSH host not configured"
+        return 1
+      fi
+      log_info "→ Executing via SSH on $host"
+      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "$cmd"
+      ;;
+
+    local)
+      log_info "→ Executing locally"
+      bash -c "$cmd"
+      ;;
+
+    *)
+      log_error "Unknown container type: $container_type"
+      return 1
+      ;;
+  esac
+}
+
+# ─── Module Commands ──────────────────────────────────────────────────────────
+
+cmd_status() {
+  local module="$1"
+  shift || true
+
+  local with_deps=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --deps)
+        with_deps=1
+        ;;
+      *)
+        log_warn "Ignoring unknown status arg: $1"
+        ;;
+    esac
+    shift
+  done
+
+  log_info "Module: $module"
+  echo
+
+  local info
+  info=$(get_module_info "$module")
+
+  if [ "$with_deps" -eq 0 ]; then
+    echo "$info" | jq '{
+      name, module_type, category,
+      path, git_remote, git_branch,
+      container_type: .container.type,
+      dev_services,
+      dependencies
+    }'
+    return 0
+  fi
+
+  local -a direct_deps=()
+  local -a missing_deps=()
+  local -a start_order=()
+  local -a stop_order=()
+  local dep
+  local idx
+
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    direct_deps+=("$dep")
+    if ! module_exists "$dep"; then
+      missing_deps+=("$dep")
+    fi
+  done < <(get_module_dependencies "$module")
+
+  DEP_SILENT_WARN=1
+  build_dependency_start_order "$module"
+  DEP_SILENT_WARN=0
+
+  for dep in "${DEP_ORDER[@]}"; do
+    [ -z "$dep" ] && continue
+    start_order+=("$dep")
+  done
+  start_order+=("$module")
+
+  stop_order+=("$module")
+  for (( idx=${#DEP_ORDER[@]}-1; idx>=0; idx-- )); do
+    dep="${DEP_ORDER[$idx]}"
+    [ -z "$dep" ] && continue
+    stop_order+=("$dep")
+  done
+
+  local direct_json
+  local missing_json
+  local start_json
+  local stop_json
+  direct_json=$(printf '%s\n' "${direct_deps[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+  missing_json=$(printf '%s\n' "${missing_deps[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+  start_json=$(printf '%s\n' "${start_order[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+  stop_json=$(printf '%s\n' "${stop_order[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+
+  echo "$info" | jq \
+    --argjson direct "$direct_json" \
+    --argjson missing "$missing_json" \
+    --argjson start "$start_json" \
+    --argjson stop "$stop_json" \
+    '{
+      name, module_type, category,
+      path, git_remote, git_branch,
+      container_type: .container.type,
+      dev_services,
+      dependencies,
+      dependencyInsights: {
+        directDependencies: $direct,
+        missingDependencies: $missing,
+        startOrderWithDeps: $start,
+        stopOrderWithDeps: $stop
+      }
+    }'
+}
+
+cmd_logs() {
+  local module="$1"
+  local service="${2:-}"
+  local tail_lines="${3:-50}"
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+
+  header "Logs for $module ($container_type)"
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$service" ]; then
+        pct exec "$ct_id" -- tail -f /var/log/syslog 2>/dev/null | head -n "$tail_lines"
+      else
+        pct exec "$ct_id" -- journalctl -u "$service" -n "$tail_lines" -f
+      fi
+      ;;
+    docker)
+      cd "$(get_module_path "$module")" || return 1
+      if [ -z "$service" ]; then
+        docker compose logs -f --tail "$tail_lines"
+      else
+        docker compose logs -f --tail "$tail_lines" "$service"
+      fi
+      ;;
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$service" ]; then
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "tail -f /var/log/syslog | head -n $tail_lines" 2>/dev/null
+      else
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "journalctl -u $service -n $tail_lines -f"
+      fi
+      ;;
+    local)
+      if [ -z "$service" ]; then
+        tail -f /var/log/syslog | head -n "$tail_lines"
+      else
+        journalctl -u "$service" -n "$tail_lines" -f
+      fi
+      ;;
+  esac
+}
+
+_start_module_core() {
+  local module="$1"
+  local service="${2:-}"
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+  local module_path
+  module_path=$(get_module_path "$module")
+
+  header "Starting $module ($container_type)"
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$service" ]; then
+        log_warn "LXC: specify service to start"
+        return 1
+      fi
+      # Check if the service has a custom start_cmd (type: process) in .brainhome.yml
+      local start_cmd
+      start_cmd=$(echo "$module_info" | jq -r \
+        ".dev_services[]? | select(.name == \"$service\") | select(.type == \"process\") | .start_cmd // \"\"")
+      if [ -n "$start_cmd" ]; then
+        log_info "Starting process service '$service' via start_cmd: $start_cmd"
+        pct exec "$ct_id" -- bash -c "$start_cmd"
+      else
+        log_info "Starting systemd service: $service"
+        pct exec "$ct_id" -- systemctl start "$service"
+      fi
+      log_success "Service started"
+      ;;
+    docker)
+      cd "$module_path" || return 1
+      if [ -z "$service" ]; then
+        log_info "Starting all services via docker-compose up"
+        docker compose up -d
+      else
+        log_info "Starting service: $service"
+        docker compose up -d "$service"
+      fi
+      log_success "Services started"
+      ;;
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$service" ]; then
+        log_warn "SSH: specify service to start"
+        return 1
+      fi
+      log_info "Starting systemd service: $service on $host"
+      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "systemctl start $service"
+      log_success "Service started"
+      ;;
+    local)
+      if [ -z "$service" ]; then
+        log_warn "Local: specify service to start"
+        return 1
+      fi
+      log_info "Starting systemd service: $service"
+      sudo systemctl start "$service"
+      log_success "Service started"
+      ;;
+  esac
+}
+
+_stop_module_core() {
+  local module="$1"
+  local service="${2:-}"
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+  local module_path
+  module_path=$(get_module_path "$module")
+
+  header "Stopping $module ($container_type)"
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$service" ]; then
+        log_warn "LXC: specify service to stop"
+        return 1
+      fi
+      # Check for custom stop_cmd (type: process); fall back to systemctl
+      local stop_cmd
+      stop_cmd=$(echo "$module_info" | jq -r \
+        ".dev_services[]? | select(.name == \"$service\") | select(.type == \"process\") | .stop_cmd // \"\"")
+      if [ -n "$stop_cmd" ]; then
+        log_info "Stopping process service '$service' via stop_cmd: $stop_cmd"
+        pct exec "$ct_id" -- bash -c "$stop_cmd"
+      else
+        # For process-type services without stop_cmd, delegate to local devctl if available
+        local svc_type
+        svc_type=$(echo "$module_info" | jq -r ".dev_services[]? | select(.name == \"$service\") | .type // \"systemd\"")
+        if [ "$svc_type" = "process" ]; then
+          local local_devctl="$module_path/tools/devctl.sh"
+          if [ -f "$local_devctl" ]; then
+            log_info "Process service '$service': delegating stop to local devctl"
+            exec bash "$local_devctl" "stop-${service%-dev}" 2>/dev/null || \
+              bash "$local_devctl" stop "$service"
+          else
+            log_warn "Process service '$service' has no stop_cmd and no local devctl — cannot stop cleanly"
+          fi
+        else
+          log_info "Stopping systemd service: $service"
+          pct exec "$ct_id" -- systemctl stop "$service"
+        fi
+      fi
+      log_success "Service stopped"
+      ;;
+    docker)
+      cd "$module_path" || return 1
+      if [ -z "$service" ]; then
+        log_info "Stopping all services via docker-compose down"
+        docker compose down
+      else
+        log_info "Stopping service: $service"
+        docker compose stop "$service"
+      fi
+      log_success "Services stopped"
+      ;;
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$service" ]; then
+        log_warn "SSH: specify service to stop"
+        return 1
+      fi
+      log_info "Stopping systemd service: $service on $host"
+      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "systemctl stop $service"
+      log_success "Service stopped"
+      ;;
+    local)
+      if [ -z "$service" ]; then
+        log_warn "Local: specify service to stop"
+        return 1
+      fi
+      log_info "Stopping systemd service: $service"
+      sudo systemctl stop "$service"
+      log_success "Service stopped"
+      ;;
+  esac
+}
+
+start_dependency_recursive() {
+  local module="$1"
+
+  if [[ -n "${START_DONE[$module]:-}" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${START_STACK[$module]:-}" ]]; then
+    log_error "Dependency cycle detected at module: $module"
+    return 1
+  fi
+
+  if ! module_exists "$module"; then
+    if [ "$DEP_SILENT_WARN" -eq 0 ]; then
+      log_warn "Dependency module not found in registry: $module"
+    fi
+    return 0
+  fi
+
+  START_STACK["$module"]=1
+
+  local dep=""
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    start_dependency_recursive "$dep"
+  done < <(get_module_dependencies "$module")
+
+  unset "START_STACK[$module]"
+
+  if [[ -z "${START_DONE[$module]:-}" ]]; then
+    log_info "Auto-start dependency module: $module"
+    _start_module_core "$module" ""
+    START_DONE["$module"]=1
+  fi
+}
+
+start_dependencies_for_module() {
+  local module="$1"
+  local dep=""
+
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    start_dependency_recursive "$dep"
+  done < <(get_module_dependencies "$module")
+}
+
+collect_dependency_order_recursive() {
+  local module="$1"
+
+  if [[ -n "${ORDER_DONE[$module]:-}" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${ORDER_STACK[$module]:-}" ]]; then
+    if [ "$DEP_SILENT_CYCLE" -eq 0 ]; then
+      log_warn "Dependency cycle detected while ordering: $module"
+    fi
+    ORDER_FAILED=1
+    return 1
+  fi
+
+  if ! module_exists "$module"; then
+    if [ "$DEP_SILENT_WARN" -eq 0 ]; then
+      log_warn "Dependency module not found in registry: $module"
+    fi
+    return 0
+  fi
+
+  ORDER_STACK["$module"]=1
+
+  local dep=""
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    if ! collect_dependency_order_recursive "$dep"; then
+      ORDER_FAILED=1
+    fi
+  done < <(get_module_dependencies "$module")
+
+  unset "ORDER_STACK[$module]"
+  ORDER_DONE["$module"]=1
+  DEP_ORDER+=("$module")
+}
+
+build_dependency_start_order() {
+  local module="$1"
+  ORDER_DONE=()
+  ORDER_STACK=()
+  DEP_ORDER=()
+  ORDER_FAILED=0
+
+  local dep=""
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    if ! collect_dependency_order_recursive "$dep"; then
+      ORDER_FAILED=1
+    fi
+  done < <(get_module_dependencies "$module")
+
+  if [ "$ORDER_FAILED" -ne 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+cmd_start() {
+  local module="$1"
+  shift || true
+
+  local service=""
+  local with_deps=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --with-deps)
+        with_deps=1
+        ;;
+      --no-deps)
+        with_deps=0
+        ;;
+      *)
+        if [ -z "$service" ]; then
+          service="$1"
+        else
+          log_warn "Ignoring extra argument for start: $1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [ "$with_deps" -eq 1 ]; then
+    START_DONE=()
+    START_STACK=()
+    log_info "Resolving dependency startup order for module: $module"
+    start_dependencies_for_module "$module"
+  fi
+
+  _start_module_core "$module" "$service"
+}
+
+cmd_stop() {
+  local module="$1"
+  shift || true
+
+  local service=""
+  local with_deps=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --with-deps)
+        with_deps=1
+        ;;
+      --no-deps)
+        with_deps=0
+        ;;
+      *)
+        if [ -z "$service" ]; then
+          service="$1"
+        else
+          log_warn "Ignoring extra argument for stop: $1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [ -n "$service" ] && [ "$with_deps" -eq 1 ]; then
+    log_warn "--with-deps ignored when a specific service is provided"
+  fi
+
+  _stop_module_core "$module" "$service"
+
+  if [ "$with_deps" -eq 1 ] && [ -z "$service" ]; then
+    build_dependency_start_order "$module"
+    local idx
+    log_info "Stopping dependency modules in reverse startup order for: $module"
+    for (( idx=${#DEP_ORDER[@]}-1; idx>=0; idx-- )); do
+      local dep_module="${DEP_ORDER[$idx]}"
+      [ -z "$dep_module" ] && continue
+      log_info "Auto-stop dependency module: $dep_module"
+      _stop_module_core "$dep_module" ""
+    done
+  fi
+}
+
+cmd_restart() {
+  local module="$1"
+  shift || true
+
+  local service=""
+  local with_deps=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --with-deps)
+        with_deps=1
+        ;;
+      --no-deps)
+        with_deps=0
+        ;;
+      *)
+        if [ -z "$service" ]; then
+          service="$1"
+        else
+          log_warn "Ignoring extra argument for restart: $1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+  local module_path
+  module_path=$(get_module_path "$module")
+
+  header "Restarting $module ($container_type)"
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$service" ]; then
+        log_warn "LXC: specify service to restart"
+        return 1
+      fi
+      # Handle process-type services (same logic as start/stop)
+      local svc_type stop_cmd start_cmd
+      svc_type=$(echo "$module_info" | jq -r ".dev_services[]? | select(.name == \"$service\") | .type // \"systemd\"")
+      stop_cmd=$(echo "$module_info"  | jq -r ".dev_services[]? | select(.name == \"$service\") | select(.type == \"process\") | .stop_cmd  // \"\"")
+      start_cmd=$(echo "$module_info" | jq -r ".dev_services[]? | select(.name == \"$service\") | select(.type == \"process\") | .start_cmd // \"\"")
+      if [ "$svc_type" = "process" ]; then
+        if [ -n "$stop_cmd" ] && [ -n "$start_cmd" ]; then
+          log_info "Restarting process service '$service' via stop_cmd + start_cmd"
+          pct exec "$ct_id" -- bash -c "$stop_cmd" || true
+          sleep 1
+          pct exec "$ct_id" -- bash -c "$start_cmd"
+        else
+          local local_devctl="$module_path/tools/devctl.sh"
+          if [ -f "$local_devctl" ]; then
+            log_info "Process service '$service': delegating restart to local devctl"
+            exec bash "$local_devctl" "restart-${service%-dev}" 2>/dev/null || \
+              bash "$local_devctl" restart "$service"
+          else
+            log_warn "Process service '$service': no stop/start_cmd and no local devctl — falling back to systemctl"
+            pct exec "$ct_id" -- systemctl restart "$service"
+          fi
+        fi
+      else
+        log_info "Restarting systemd service: $service"
+        pct exec "$ct_id" -- systemctl restart "$service"
+      fi
+      log_success "Service restarted"
+      ;;
+    docker)
+      cd "$module_path" || return 1
+      if [ -z "$service" ]; then
+        log_info "Restarting all services"
+        docker compose down && docker compose up -d
+      else
+        log_info "Restarting service: $service"
+        docker compose restart "$service"
+      fi
+      log_success "Services restarted"
+      ;;
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$service" ]; then
+        log_warn "SSH: specify service to restart"
+        return 1
+      fi
+      log_info "Restarting systemd service: $service on $host"
+      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" "systemctl restart $service"
+      log_success "Service restarted"
+      ;;
+    local)
+      if [ -z "$service" ]; then
+        log_warn "Local: specify service to restart"
+        return 1
+      fi
+      log_info "Restarting systemd service: $service"
+      sudo systemctl restart "$service"
+      log_success "Service restarted"
+      ;;
+  esac
+
+  if [ "$with_deps" -eq 1 ]; then
+    START_DONE=()
+    START_STACK=()
+    log_info "Resolving dependency startup order after restart for module: $module"
+    start_dependencies_for_module "$module"
+  fi
+}
+
+cmd_list() {
+  header "Available Modules"
+
+  if [ ! -f "$MODULES_JSON" ]; then
+    log_error "Registry not found: $MODULES_JSON"
+    return 1
+  fi
+
+  echo
+  jq -r '.modules | to_entries[] | "\(.value.name) (\(.value.module_type), \(.value.category))"' "$MODULES_JSON"
+  echo
+  echo "Total: $(jq -r '.count // 0' "$MODULES_JSON") modules"
+}
+
+cmd_collect_logs() {
+  local target="${1:-all}"
+  local lines="${2:-120}"
+
+  if ! [[ "$lines" =~ ^[0-9]+$ ]]; then
+    log_error "lines must be numeric"
+    return 1
+  fi
+
+  log_info "Collecting centralized logs: target=$target lines=$lines"
+  "$TOOLS_ROOT/lib/log-collector.sh" "$target" "$lines"
+}
+
+cmd_dashboard() {
+  local args=("$@")
+  "$TOOLS_ROOT/bin/brainhome-status" "${args[@]}"
+}
+
+cmd_tasks() {
+  local args=("$@")
+  "$TOOLS_ROOT/bin/brainhome-tasks" "${args[@]}"
+}
+
+cmd_taskcheck() {
+  local args=("$@")
+  "$TOOLS_ROOT/bin/brainhome-taskcheck" "${args[@]}"
+}
+
+cmd_smoketest() {
+  local args=("$@")
+  "$TOOLS_ROOT/bin/brainhome-smoketest" "${args[@]}"
+}
+
+cmd_smokefix() {
+  local args=("$@")
+  "$TOOLS_ROOT/bin/brainhome-smokefix" "${args[@]}"
+}
+
+cmd_cycle_check() {
+  local args=("$@")
+
+  if [ ${#args[@]} -eq 0 ]; then
+    cmd_dep_order --all --json --strict --summary
+    return $?
+  fi
+
+  local text_mode=0
+  local json_mode=0
+  local ci_mode=""       # empty = off; "count"|"csv"|"lines" when active
+  local no_cycles_mode=0 # silent boolean: exit 0 = clean, exit 1 = cycles
+  local -a forwarded=()
+
+  local arg
+  for arg in "${args[@]}"; do
+    case "$arg" in
+      --text)
+        text_mode=1
+        ;;
+      --json)
+        json_mode=1
+        forwarded+=("$arg")
+        ;;
+      --ci)
+        ci_mode="count"
+        ;;
+      --ci=count)
+        ci_mode="count"
+        ;;
+      --ci=csv)
+        ci_mode="csv"
+        ;;
+      --ci=lines)
+        ci_mode="lines"
+        ;;
+      --ci=*)
+        log_error "cycle-check: invalid --ci value. Use --ci, --ci=count, --ci=csv, or --ci=lines"
+        return 1
+        ;;
+      --no-cycles)
+        no_cycles_mode=1
+        ;;
+      *)
+        forwarded+=("$arg")
+        ;;
+    esac
+  done
+
+  if [ "$no_cycles_mode" -eq 1 ] && ( [ -n "$ci_mode" ] || [ "$text_mode" -eq 1 ] || [ "$json_mode" -eq 1 ] ); then
+    log_error "cycle-check: --no-cycles cannot be combined with --ci, --text, or --json"
+    return 1
+  fi
+
+  if [ -n "$ci_mode" ] && [ "$text_mode" -eq 1 ]; then
+    log_error "cycle-check: --ci cannot be combined with --text"
+    return 1
+  fi
+
+  if [ -n "$ci_mode" ] && [ "$json_mode" -eq 1 ]; then
+    log_error "cycle-check: --ci cannot be combined with --json"
+    return 1
+  fi
+
+  if [ "$text_mode" -eq 1 ] && [ "$json_mode" -eq 1 ]; then
+    log_error "cycle-check: use either --text or --json, not both"
+    return 1
+  fi
+
+  if [ "$no_cycles_mode" -eq 1 ]; then
+    cmd_dep_order --all --strict --output=count "${forwarded[@]}" > /dev/null 2>&1
+    return $?
+  fi
+
+  if [ -n "$ci_mode" ]; then
+    cmd_dep_order --all --strict --output="$ci_mode" "${forwarded[@]}"
+    return $?
+  fi
+
+  if [ "$text_mode" -eq 1 ]; then
+    cmd_dep_order --all --strict --summary "${forwarded[@]}"
+    return $?
+  fi
+
+  # Always scope to all modules; caller can override output/strictness via args.
+  cmd_dep_order --all "${forwarded[@]}"
+}
+
+cmd_dep_order() {
+  local module=""
+  local all_modules=0
+  local as_json=0
+  local strict_mode=0
+  local summary_mode=0
+  local quiet_mode=0
+  local silent_mode=0
+  local fail_count_mode=0
+  local fail_modules_mode=0
+  local output_mode=""
+  local sort_mode=0
+  local sort_direction="asc"
+  local sep_char=","
+  local sep_specified=0
+  local format_template=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --all)
+        all_modules=1
+        ;;
+      --json)
+        as_json=1
+        ;;
+      --strict)
+        strict_mode=1
+        ;;
+      --summary)
+        summary_mode=1
+        ;;
+      --quiet)
+        quiet_mode=1
+        ;;
+      --silent)
+        silent_mode=1
+        ;;
+      --fail-count)
+        fail_count_mode=1
+        ;;
+      --fail-modules)
+        fail_modules_mode=1
+        ;;
+      --output=lines)
+        output_mode="lines"
+        ;;
+      --output=csv)
+        output_mode="csv"
+        ;;
+      --output=count)
+        output_mode="count"
+        ;;
+      --output=*)
+        log_error "Invalid --output value. Use --output=lines, --output=csv, or --output=count"
+        return 1
+        ;;
+      --sort)
+        sort_mode=1
+        ;;
+      --sort=asc)
+        sort_mode=1
+        sort_direction="asc"
+        ;;
+      --sort=desc)
+        sort_mode=1
+        sort_direction="desc"
+        ;;
+      --sort=none)
+        sort_mode=0
+        sort_direction="none"
+        ;;
+      --sort=*)
+        log_error "Invalid --sort value. Use --sort, --sort=asc, --sort=desc, or --sort=none"
+        return 1
+        ;;
+      --sep)
+        log_error "Use --sep=<char>"
+        return 1
+        ;;
+      --sep=*)
+        sep_char="${1#--sep=}"
+        sep_specified=1
+        if [ -z "$sep_char" ]; then
+          log_error "--sep requires a non-empty value"
+          return 1
+        fi
+        ;;
+      --format=*)
+        format_template="${1#--format=}"
+        if [ -z "$format_template" ]; then
+          log_error "--format requires a non-empty template string (use {m} as the module placeholder)"
+          return 1
+        fi
+        ;;
+      *)
+        if [ -z "$module" ]; then
+          module="$1"
+        else
+          log_warn "Ignoring unknown dep-order arg: $1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [ "$all_modules" -eq 1 ] && [ -n "$module" ]; then
+    log_error "Use either <module> or --all, not both"
+    return 1
+  fi
+
+  if [ "$all_modules" -eq 0 ] && [ -z "$module" ]; then
+    log_error "Usage: brainhome-devctl dep-order <module> [--json] [--strict] [--summary] [--quiet] [--silent] [--output=lines|csv|count] [--fail-count] [--fail-modules] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none] | dep-order --all [--json] [--strict] [--summary] [--quiet] [--silent] [--output=lines|csv|count] [--fail-count] [--fail-modules] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none]"
+    return 1
+  fi
+
+  # Backward compatibility: old flags map to output modes unless --output is explicit.
+  if [ -z "$output_mode" ]; then
+    if [ "$fail_count_mode" -eq 1 ]; then
+      output_mode="count"
+    elif [ "$fail_modules_mode" -eq 1 ]; then
+      output_mode="csv"
+    fi
+  fi
+
+  # --output=* implies --summary --quiet automatically.
+  if [ -n "$output_mode" ]; then
+    summary_mode=1
+    quiet_mode=1
+  fi
+
+  if [ -n "$output_mode" ] && [ "$as_json" -eq 1 ]; then
+    log_error "--output cannot be combined with --json"
+    return 1
+  fi
+
+  if [ "$sep_specified" -eq 1 ] && [ "$as_json" -eq 1 ]; then
+    log_error "--sep cannot be combined with --json"
+    return 1
+  fi
+
+  if [ "$fail_count_mode" -eq 1 ] && [ "$fail_modules_mode" -eq 1 ]; then
+    log_error "Use either --fail-count or --fail-modules, not both (or prefer --output=...)"
+    return 1
+  fi
+
+  if [ "$fail_count_mode" -eq 1 ] && [ -n "$output_mode" ] && [ "$output_mode" != "count" ]; then
+    log_error "--fail-count conflicts with --output=$output_mode"
+    return 1
+  fi
+
+  if [ "$fail_modules_mode" -eq 1 ] && [ -n "$output_mode" ] && [ "$output_mode" != "csv" ]; then
+    log_error "--fail-modules conflicts with --output=$output_mode"
+    return 1
+  fi
+
+  if [ "$sep_specified" -eq 1 ] && [ "$output_mode" != "csv" ]; then
+    log_error "--sep requires csv output (--output=csv or --fail-modules)"
+    return 1
+  fi
+
+  if [ -n "$format_template" ] && [ "$output_mode" != "lines" ]; then
+    log_error "--format requires lines output (--output=lines or --ci=lines)"
+    return 1
+  fi
+
+  if [ "$all_modules" -eq 0 ] && ! module_exists "$module"; then
+    log_error "Unknown module: $module"
+    return 1
+  fi
+
+  local -a module_list=()
+  if [ "$all_modules" -eq 1 ]; then
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      module_list+=("$m")
+    done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+  else
+    module_list=("$module")
+  fi
+
+  if [ ${#module_list[@]} -eq 0 ]; then
+    log_error "No modules found in registry"
+    return 1
+  fi
+
+  local total_modules=${#module_list[@]}
+  local cycle_count=0
+  local emitted_count=0
+  local -a cycle_modules=()
+  local modules_payload=""
+
+  local current
+  for current in "${module_list[@]}"; do
+    local cycle_detected=0
+
+    DEP_SILENT_WARN=1
+    if [ "$as_json" -eq 1 ] || [ "$summary_mode" -eq 1 ]; then
+      DEP_SILENT_CYCLE=1
+    else
+      DEP_SILENT_CYCLE=0
+    fi
+    if ! build_dependency_start_order "$current"; then
+      cycle_detected=1
+      cycle_count=$((cycle_count + 1))
+    fi
+    DEP_SILENT_WARN=0
+    DEP_SILENT_CYCLE=0
+
+    if [ "$cycle_detected" -eq 1 ]; then
+      cycle_modules+=("$current")
+    fi
+
+    if [ "$summary_mode" -eq 1 ] && [ "$cycle_detected" -eq 0 ]; then
+      continue
+    fi
+
+    local -a direct_deps=()
+    local -a start_order=()
+    local -a stop_order=()
+    local dep=""
+    local idx
+
+    while IFS= read -r dep; do
+      [ -z "$dep" ] && continue
+      direct_deps+=("$dep")
+    done < <(get_module_dependencies "$current")
+
+    for dep in "${DEP_ORDER[@]}"; do
+      [ -z "$dep" ] && continue
+      start_order+=("$dep")
+    done
+    start_order+=("$current")
+
+    stop_order+=("$current")
+    for (( idx=${#DEP_ORDER[@]}-1; idx>=0; idx-- )); do
+      dep="${DEP_ORDER[$idx]}"
+      [ -z "$dep" ] && continue
+      stop_order+=("$dep")
+    done
+
+    if [ "$as_json" -eq 1 ]; then
+      local direct_json
+      local start_json
+      local stop_json
+      local item_json
+      direct_json=$(printf '%s\n' "${direct_deps[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+      start_json=$(printf '%s\n' "${start_order[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+      stop_json=$(printf '%s\n' "${stop_order[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+      item_json=$(jq -n \
+        --arg module "$current" \
+        --argjson direct "$direct_json" \
+        --argjson start "$start_json" \
+        --argjson stop "$stop_json" \
+        --argjson cycle "$cycle_detected" \
+        '{module: $module, directDependencies: $direct, startOrderWithDeps: $start, stopOrderWithDeps: $stop, cycleDetected: ($cycle == 1)}')
+      if [ -n "$modules_payload" ]; then
+        modules_payload+=" , $item_json"
+      else
+        modules_payload="$item_json"
+      fi
+      emitted_count=$((emitted_count + 1))
+      continue
+    fi
+
+    if [ "$summary_mode" -eq 1 ]; then
+      emitted_count=$((emitted_count + 1))
+      continue
+    fi
+
+    if [ "$cycle_detected" -eq 1 ]; then
+      log_warn "Dependency cycle detected for module: $current (order may be incomplete)"
+    fi
+
+    header "Dependency Order for $current"
+    echo
+    echo "Direct dependencies:"
+    if [ ${#direct_deps[@]} -eq 0 ]; then
+      echo "  - (none)"
+    else
+      for dep in "${direct_deps[@]}"; do
+        echo "  - $dep"
+      done
+    fi
+    echo
+    echo "Start order with --with-deps:"
+    for dep in "${start_order[@]}"; do
+      echo "  - $dep"
+    done
+    echo
+    echo "Stop order with --with-deps:"
+    for dep in "${stop_order[@]}"; do
+      echo "  - $dep"
+    done
+    if [ "$all_modules" -eq 1 ]; then
+      echo
+    fi
+    emitted_count=$((emitted_count + 1))
+  done
+
+  local -a cycle_output_modules=()
+  if [ "$sort_mode" -eq 1 ] && [ ${#cycle_modules[@]} -gt 1 ]; then
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      cycle_output_modules+=("$m")
+    done < <(
+      if [ "$sort_direction" = "desc" ]; then
+        printf '%s\n' "${cycle_modules[@]}" | sort -u -r
+      else
+        printf '%s\n' "${cycle_modules[@]}" | sort -u
+      fi
+    )
+  else
+    cycle_output_modules=("${cycle_modules[@]}")
+  fi
+
+  if [ "$as_json" -eq 1 ]; then
+    local cycle_modules_json
+    cycle_modules_json=$(printf '%s\n' "${cycle_output_modules[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+    if [ -z "$modules_payload" ]; then
+      modules_payload=""
+    fi
+    printf '{"summary":{"modulesTotal":%s,"cycleCount":%s,"strict":%s,"summaryMode":%s,"cycleModules":%s,"emittedModules":%s},"modules":[%s]}' \
+      "$total_modules" "$cycle_count" "$([ "$strict_mode" -eq 1 ] && echo true || echo false)" \
+      "$([ "$summary_mode" -eq 1 ] && echo true || echo false)" "$cycle_modules_json" "$emitted_count" "$modules_payload"
+    echo
+  elif [ "$summary_mode" -eq 1 ]; then
+    if [ "$quiet_mode" -eq 1 ]; then
+      if [ "$output_mode" = "count" ]; then
+        echo "$cycle_count"
+      elif [ "$output_mode" = "csv" ]; then
+        local cycle_csv=""
+        local m
+        for m in "${cycle_output_modules[@]}"; do
+          if [ -n "$cycle_csv" ]; then
+            cycle_csv+="$sep_char$m"
+          else
+            cycle_csv="$m"
+          fi
+        done
+        echo "$cycle_csv"
+      else
+        local m
+        for m in "${cycle_output_modules[@]}"; do
+          if [ -n "$format_template" ]; then
+            echo "${format_template//\{m\}/$m}"
+          else
+            echo "$m"
+          fi
+        done
+      fi
+    else
+      header "Dependency Cycle Summary"
+      if [ "$cycle_count" -eq 0 ]; then
+        echo "No dependency cycles detected across $total_modules module(s)."
+      else
+        echo "Cycle detected in $cycle_count of $total_modules module(s):"
+        local m
+        for m in "${cycle_output_modules[@]}"; do
+          echo "  - $m"
+        done
+      fi
+    fi
+  fi
+
+  if [ "$strict_mode" -eq 1 ] && [ "$cycle_count" -gt 0 ]; then
+    if [ "$silent_mode" -eq 1 ]; then
+      :
+    elif [ "$as_json" -eq 1 ]; then
+      echo "[ERR]  Strict mode failed: detected dependency cycles in $cycle_count module(s)" >&2
+    elif [ "$output_mode" = "count" ] || [ "$output_mode" = "csv" ]; then
+      :
+    elif [ "$quiet_mode" -eq 1 ] && [ "$summary_mode" -eq 1 ] && [ "$as_json" -eq 0 ]; then
+      echo "[ERR]  Strict mode failed: detected dependency cycles in $cycle_count module(s)" >&2
+    else
+      log_error "Strict mode failed: detected dependency cycles in $cycle_count module(s)"
+    fi
+    return 1
+  fi
+
+  return 0
+}
+
+cmd_context() {
+  # ─── Parse args ───────────────────────────────────────────────────────────
+  local module=""
+  local as_json=0
+  local full_mode=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --module=*)  module="${1#*=}" ;;
+      --module)    module="${2:-}"; shift ;;
+      --json)      as_json=1 ;;
+      --full)      full_mode=1 ;;
+      --help|-h)
+        echo "Usage: brainhome context [<module>] [--json] [--full]"
+        echo ""
+        echo "Gibt einen vollständigen Infrastruktur-Context aus."
+        echo "  <module>      Fokus auf Modul + Abhängigkeiten (auto-detect wenn in Modul-Dir)"
+        echo "  --json        Maschinenlesbares JSON (alle 3 Quellen: modules + inventory + cron)"
+        echo "  --full        Inkl. aller Proxmox-Guests (auch ohne Modul-Zuordnung)"
+        return 0
+        ;;
+      *)
+        [ -z "$module" ] && module="$1"
+        ;;
+    esac
+    shift
+  done
+
+  # Auto-detect from cwd
+  if [ -z "$module" ]; then
+    module=$(detect_module 2>/dev/null || true)
+  fi
+
+  local INVENTORY="$TOOLS_ROOT/config/infrastructure-inventory.json"
+  local CRON_REG="$TOOLS_ROOT/config/cron-registry.json"
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M')
+
+  # ─── JSON mode ─────────────────────────────────────────────────────────────
+  if [ "$as_json" -eq 1 ]; then
+    local modules_data="{}"
+    local inventory_data="{}"
+    local cron_data="[]"
+    [ -f "$MODULES_JSON" ] && modules_data=$(cat "$MODULES_JSON")
+    [ -f "$INVENTORY" ]    && inventory_data=$(cat "$INVENTORY")
+    [ -f "$CRON_REG" ]     && cron_data=$(jq '.jobs // []' "$CRON_REG" 2>/dev/null || echo "[]")
+    jq -n \
+      --argjson modules  "$modules_data" \
+      --argjson inventory "$inventory_data" \
+      --argjson cron     "$cron_data" \
+      --arg ts           "$ts" \
+      --arg focus        "$module" \
+      '{
+        generated_at: $ts,
+        focus_module: (if $focus != "" then $focus else null end),
+        modules:   $modules.modules,
+        nodes:     $inventory.nodes,
+        guests:    $inventory.guests,
+        cron_jobs: $cron
+      }'
+    return 0
+  fi
+
+  # ─── Text mode ─────────────────────────────────────────────────────────────
+  local sep="══════════════════════════════════════════════════════════════════════"
+  echo ""
+  echo -e "${BOLD}${CYAN}$sep${NC}"
+  if [ -n "$module" ]; then
+    echo -e "${BOLD}${CYAN}  BrainHome Context: $module  [$ts]${NC}"
+  else
+    echo -e "${BOLD}${CYAN}  BrainHome Context Snapshot  [$ts]${NC}"
+  fi
+  echo -e "${BOLD}${CYAN}$sep${NC}"
+  echo ""
+
+  # ─── Proxmox Nodes ─────────────────────────────────────────────────────────
+  if [ -f "$INVENTORY" ]; then
+    echo -e "${BOLD}PROXMOX NODES${NC}"
+    jq -r '.nodes[] | [.name, (.ip // "-"), (.role // "")] | @tsv' "$INVENTORY" 2>/dev/null | \
+      awk -F'\t' '{printf "  %-22s %-18s %s\n", $1, $2, $3}'
+    echo ""
+  fi
+
+  # ─── Module-focused view ───────────────────────────────────────────────────
+  if [ -n "$module" ] && [ -f "$MODULES_JSON" ] && jq -e ".modules.\"$module\"" "$MODULES_JSON" >/dev/null 2>&1; then
+    local minfo mpath mtype mcat ctype
+    minfo=$(jq -r ".modules.\"$module\"" "$MODULES_JSON")
+    mpath=$(echo "$minfo" | jq -r '.path          // "(unbekannt)"')
+    mtype=$(echo "$minfo" | jq -r '.module_type   // "?"')
+    mcat=$(echo "$minfo"  | jq -r '.category      // "?"')
+    ctype=$(echo "$minfo" | jq -r '.container.type // "local"')
+    local deps
+    deps=$(jq -r ".modules.\"$module\".dependencies[]?" "$MODULES_JSON" 2>/dev/null | tr '\n' ', ' | sed 's/,$//')
+    [ -z "$deps" ] && deps="keine"
+
+    echo -e "${BOLD}MODUL: $module${NC}"
+    printf "  %-16s %s (%s)\n"  "Typ:"          "$mtype"  "$mcat"
+    printf "  %-16s %s\n"       "Pfad:"         "$mpath"
+    printf "  %-16s %s\n"       "Container:"    "$ctype"
+    printf "  %-16s %s\n"       "Abhängigkeiten:" "$deps"
+
+    if [ -f "$INVENTORY" ]; then
+      local guests_block
+      guests_block=$(jq -r ".guests[] | select(.module == \"$module\") | \
+        \"  CT/VM \" + (.id | tostring) + \"  \" + (.name // \"?\") + \
+        \"  \" + (.ip // \"-\") + \
+        \"  node:\" + (.node // \"?\") + \
+        \"  ports:\" + ((.ports // []) | map(tostring) | join(\",\"))" \
+        "$INVENTORY" 2>/dev/null)
+      if [ -n "$guests_block" ]; then
+        echo "  Guests:"
+        echo "$guests_block"
+      fi
+    fi
+    echo ""
+
+    # Dependencies detail
+    if [ "$deps" != "keine" ]; then
+      echo -e "${BOLD}ABHÄNGIGKEITEN${NC}"
+      IFS=',' read -ra dep_list <<< "$deps"
+      for dep in "${dep_list[@]}"; do
+        dep=$(echo "$dep" | xargs)
+        [ -z "$dep" ] && continue
+        if [ -f "$INVENTORY" ]; then
+          local dep_line
+          dep_line=$(jq -r ".guests[] | select(.module == \"$dep\") | \
+            \"  $dep  CT\" + (.id | tostring) + \"  \" + (.ip // \"-\") + \
+            \"  node:\" + (.node // \"?\") + \
+            \"  ports:\" + ((.ports // []) | map(tostring) | join(\",\"))" \
+            "$INVENTORY" 2>/dev/null | head -1)
+          [ -n "$dep_line" ] && echo "$dep_line" || echo "  $dep  (kein Guest gefunden)"
+        fi
+      done
+      echo ""
+    fi
+
+    # Cron jobs for this module
+    if [ -f "$CRON_REG" ]; then
+      local cron_block
+      cron_block=$(jq -r ".jobs[] | select(.module == \"$module\") | \
+        \"  [\" + .id + \"]  \" + (.schedule // \"?\") + \"  » \" + (.description // .label)" \
+        "$CRON_REG" 2>/dev/null)
+      if [ -n "$cron_block" ]; then
+        echo -e "${BOLD}CRON-JOBS: $module${NC}"
+        echo "$cron_block"
+        echo ""
+      fi
+    fi
+
+  else
+    # ─── Global / all-modules view ──────────────────────────────────────────
+    echo -e "${BOLD}MODULE & CONTAINER${NC}"
+    if [ -f "$MODULES_JSON" ]; then
+      printf "  %-22s %-14s %-9s %-18s %s\n" "MODUL" "TYP" "CT/VM" "IP" "DEPS"
+      printf "  %s\n" "$(printf '%.0s─' {1..80})"
+      while IFS= read -r mod; do
+        [ -z "$mod" ] && continue
+        local minfo2 mtype2 host_ip2 ct_tag host_deps2
+        minfo2=$(jq -r ".modules.\"$mod\"" "$MODULES_JSON" 2>/dev/null)
+        mtype2=$(echo "$minfo2" | jq -r '.module_type // "?"')
+        host_ip2=""
+        ct_tag="-"
+        if [ -f "$INVENTORY" ]; then
+          host_ip2=$(jq -r ".guests[] | select(.module == \"$mod\") | .ip" "$INVENTORY" 2>/dev/null | head -1)
+          ct_tag=$(jq -r ".guests[] | select(.module == \"$mod\") | \"CT\" + (.id | tostring)" "$INVENTORY" 2>/dev/null | head -1)
+        fi
+        [ -z "$host_ip2" ] && host_ip2="-"
+        [ -z "$ct_tag"   ] && ct_tag="-"
+        host_deps2=$(jq -r ".modules.\"$mod\".dependencies[]?" "$MODULES_JSON" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+        [ -z "$host_deps2" ] && host_deps2="-"
+        printf "  %-22s %-14s %-9s %-18s %s\n" "$mod" "$mtype2" "$ct_tag" "$host_ip2" "$host_deps2"
+      done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+    fi
+    echo ""
+
+    # All guests (--full mode)
+    if [ -f "$INVENTORY" ] && [ "$full_mode" -eq 1 ]; then
+      echo -e "${BOLD}ALLE GUESTS (Proxmox)${NC}"
+      printf "  %-8s %-22s %-18s %-18s %-12s %s\n" "ID" "NAME" "IP" "NODE" "STATUS" "PORTS"
+      printf "  %s\n" "$(printf '%.0s─' {1..80})"
+      jq -r '.guests[] | [
+        "CT" + (.id | tostring), (.name // "?"),
+        (.ip // "-"), (.node // "?"),
+        (.status // "?"),
+        ((.ports // []) | map(tostring) | join(","))
+      ] | @tsv' "$INVENTORY" 2>/dev/null | \
+        awk -F'\t' '{printf "  %-8s %-22s %-18s %-18s %-12s %s\n",$1,$2,$3,$4,$5,$6}'
+      echo ""
+    fi
+
+    # Cron overview
+    if [ -f "$CRON_REG" ]; then
+      echo -e "${BOLD}CRON-JOBS${NC}"
+      printf "  %-22s %-28s %s\n" "MODUL" "SCHEDULE" "LABEL"
+      printf "  %s\n" "$(printf '%.0s─' {1..80})"
+      jq -r '.jobs[] | [(.module // "?"), (.schedule // "?"), .label] | @tsv' "$CRON_REG" 2>/dev/null | \
+        awk -F'\t' '{printf "  %-22s %-28s %s\n", $1, $2, $3}'
+      echo ""
+    fi
+  fi
+
+  # Footer hints
+  echo -e "${GREEN}Tipp:${NC}  brainhome context --json            → maschinenlesbares JSON"
+  echo -e "${GREEN}Tipp:${NC}  brainhome context --full            → alle Proxmox-Guests"
+  if [ -n "$module" ]; then
+    echo -e "${BLUE}Mehr:${NC}  brainhome context                   → Global-Übersicht"
+    echo -e "${BLUE}Logs:${NC}  brainhome devctl $module logs"
+  else
+    echo -e "${BLUE}Mehr:${NC}  brainhome context <modul>           → Fokus + Deps + Cron"
+  fi
+  echo ""
+}
+
+cmd_ask() {
+  # ── Parse arguments ──────────────────────────────────────────────────────
+  local module=""
+  local scenario=""
+  local with_context=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --module=*)      module="${1#*=}" ;;
+      --module)        module="${2:-}"; shift ;;
+      --scenario=*)    scenario="${1#*=}" ;;
+      --scenario)      scenario="${2:-}"; shift ;;
+      --with-context)  with_context=1 ;;
+      --help|-h)
+        echo "Usage: brainhome devctl ask [--module <m>] [--scenario <s>] [--with-context]"
+        echo ""
+        echo "Szenarien:"
+        echo "  Infrastruktur:  proxmox | storage | dns | ha | caddy | pxe"
+        echo "  Entwicklung:    backend | frontend | docker | keycloak | grafana"
+        echo "  Dienste:        platform | appstore | nextcloud | fritzbox | autarkie"
+        echo "  Netzwerk:       network | openwrt"
+        echo "  Geräte:         workstation | brainpi | ai-edge"
+        echo ""
+        echo "Gibt ein vorgefülltes Debug-Template aus — optimiert für maximale Info"
+        echo "pro Anfrage und minimale Rate-Limits."
+        echo "  --with-context   Hängt den vollständigen Infrastruktur-Kontext an"
+        return 0
+        ;;
+      *)
+        # positional: first unknown = module, second = scenario
+        if [ -z "$module" ]; then
+          module="$1"
+        elif [ -z "$scenario" ]; then
+          scenario="$1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  # ── Auto-detect module from cwd if not given ──────────────────────────────
+  if [ -z "$module" ]; then
+    module=$(detect_module 2>/dev/null || true)
+  fi
+
+  # ── Build context block from registry ─────────────────────────────────────
+  local context_block=""
+  if [ -n "$module" ] && [ -f "$MODULES_JSON" ] && jq -e ".modules.\"$module\"" "$MODULES_JSON" >/dev/null 2>&1; then
+    local minfo
+    minfo=$(jq -r ".modules.\"$module\"" "$MODULES_JSON" 2>/dev/null)
+    local mpath mtype ctype host_ips
+    mpath=$(echo "$minfo"  | jq -r '.path          // "(unbekannt)"')
+    mtype=$(echo "$minfo"  | jq -r '.module_type   // "(unbekannt)"')
+    ctype=$(echo "$minfo"  | jq -r '.container.type // "local"')
+    # Collect IPs from container hosts array or single host field
+    host_ips=$(echo "$minfo" | jq -r '
+      (.container.hosts // []) |
+      if length > 0 then join(", ")
+      else (.container.host // "(keine IP)") end
+    ' 2>/dev/null || echo "(keine IP)")
+    local ct_id=""
+    ct_id=$(echo "$minfo"  | jq -r '.container.id // ""' 2>/dev/null || true)
+    local deps
+    deps=$(jq -r ".modules.\"$module\".dependencies[]?" "$MODULES_JSON" 2>/dev/null | tr '\n' ', ' | sed 's/,$//')
+    [ -z "$deps" ] && deps="keine"
+
+    context_block="### Setup (auto-detektiert: $module)
+- Modul:      $module  ($mtype, $ctype)
+- Pfad:       $mpath
+- Host/CT:    ${ct_id:+CT$ct_id / }$host_ips
+- Abhängigkeiten: $deps"
+  else
+    # Generic BrainHome context when no module matched
+    context_block="### Setup
+- Modul:        (z. B. webserver | brainhome-platform | pihole | caddy | homeassistant)
+- Container:    (CT-ID / IP, z. B. CT112 / 192.168.188.112)
+- Proxmox-Node: (z. B. proxmox-workstation | proxmox-ug)
+- Abhängigkeiten: (welche Dienste müssen laufen? z. B. pihole, caddy)"
+  fi
+
+  # ── Szenario-spezifische Ergänzungen ──────────────────────────────────────
+  local scenario_hints=""
+  case "${scenario:-generic}" in
+    proxmox)
+      scenario_hints="### Proxmox-Kontext
+- Proxmox-Version: $(ssh -o BatchMode=yes -o ConnectTimeout=3 proxmox-workstation 'pveversion' 2>/dev/null || echo '(nicht erreichbar)')
+- Betroffener Node / CT / VM:
+- Cluster-Status: $(ssh -o BatchMode=yes -o ConnectTimeout=3 proxmox-workstation 'pvecm status 2>/dev/null | head -5' 2>/dev/null || echo '(nicht erreichbar)')"
+      ;;
+    storage|nas)
+      scenario_hints="### Storage-Kontext
+- Storage-Typ:   (NFS | SMB | ZFS | CIFS)
+- Mount-Pfad:
+- \`df -h\` Output: (hier einfügen)
+- \`mount | grep <pfad>\` Output: (hier einfügen)
+- NAS erreichbar (ping): "
+      ;;
+    dns|pihole)
+      scenario_hints="### DNS-Kontext
+- Pi-hole-Instanz: (pihole-1 | pihole-og | pihole-eg)
+- Symptom:         (kein DNS | falscher Record | Sync-Fehler)
+- \`dig <domain> @192.168.188.251\` Output: (hier einfügen)
+- Sync-Log (\`brainhome devctl pihole logs\`): (hier einfügen)"
+      ;;
+    ha|homeassistant|HomeAssistant)
+      # Detect which HA instance from module context or auto-detect
+      local ha_instance=""
+      local ha_host=""
+      if [ -n "$module" ]; then
+        case "$module" in
+          *-eg|*EG) ha_instance="eg"; ha_host="192.168.188.191 (EG)" ;;
+          *-og|*OG) ha_instance="og"; ha_host="192.168.188.191 (OG)" ;;
+          *-ug|*UG) ha_instance="ug"; ha_host="192.168.188.191 (UG)" ;;
+          *-ga|*GA) ha_instance="ga"; ha_host="192.168.188.191 (GA)" ;;
+          *) ha_instance="master"; ha_host="192.168.188.191 (Master)" ;;
+        esac
+      fi
+      scenario_hints="### HomeAssistant-Kontext
+- HA-Instanz:        ${ha_instance:-master | eg | og | ug | ga}
+- Host/IP:           ${ha_host:-192.168.188.191}  SSH: haos-${ha_instance:-master}@<IP>
+- HA-Version:        (unter Einstellungen → Info)
+- Core / OS / Supervisor Version:
+- Betroffene Entität / Automation / Integration:
+- \`brainhome devctl HomeAssistant logs\` Output:
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- Fehlermeldung aus HA-Logbuch (Einstellungen → System → Protokoll):
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- Betroffenes YAML (automations.yaml / configuration.yaml / binary_sensors.yaml):
+  \`\`\`yaml
+  (Snippet hier einfügen)
+  \`\`\`
+- HA-Restart durchgeführt: ja / nein
+- Letztes Update: "
+      ;;
+    caddy|proxy|tls)
+      scenario_hints="### Caddy/Reverse-Proxy-Kontext
+- Caddy-Version:     (CT110 @ 192.168.188.200 / 192.168.188.202)
+- Betroffene Domain / Route:
+- Caddyfile (Snippet):
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- \`systemctl status caddy\` Output:
+- TLS-Zertifikat Status: (gültig / abgelaufen / ACME-Fehler)
+- \`curl -v https://<domain>\` Output: (hier einfügen)
+- Erreichbar von innen (ping/curl CT110): ja / nein"
+      ;;
+    autarkie|solar|energy)
+      scenario_hints="### Autarkie/Solar-Kontext
+- Komponente:        (Solaranlage | Wechselrichter | Batteriespeicher | Zähler)
+- Datenquelle:       (MQTT | Modbus | API)
+- Grafana-Dashboard: (CT219 @ 192.168.188.108)
+- Betroffene Metrik / Sensor:
+- Letzter bekannter Wert:
+- \`brainhome devctl grafana logs\` Output: (hier einfügen)
+- Relevanter Log-Pfad auf lokalem Host: (hier einfügen)"
+      ;;
+    pxe|pxe-boot|netboot)
+      scenario_hints="### PXE-Boot-Kontext
+- PXE-Stack:         (CT130 @ 192.168.188.250)
+- Betroffenes Gerät / MAC-Adresse:
+- Boot-Stage:        (DHCP | TFTP | iPXE | Kickstart / Preseed)
+- \`journalctl -u dnsmasq -n 30\` (im CT130):
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- Pi-hole DNS erreichbar: ja / nein (CT100 @ 192.168.188.251)
+- TFTP-Datei vorhanden: (ls /var/lib/tftpboot/<datei>)"
+      ;;
+    platform|brainhome-platform)
+      scenario_hints="### BrainHome-Platform-Kontext
+- Betroffener Service: (brainhome-backend | brainhome-web | lab-backend | auth | gateway)
+- \`docker compose ps\` Output:
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- \`docker compose logs <service> --tail 50\` Output:
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- Keycloak erreichbar: ja / nein (CT107 @ 192.168.188.107)
+- Ports: backend :8080 | web :4200 | lab :8081"
+      ;;
+    appstore|appstore-system)
+      scenario_hints="### Appstore-System-Kontext
+- Betroffene App / API-Endpunkt:
+- Container:         (Docker @ 192.168.188.107, Port 5000)
+- \`docker ps | grep appstore\` Output:
+- \`docker logs <appstore-container>\` Output:
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- HTTP-Fehler / Response Code:"
+      ;;
+    network|openwrt)
+      scenario_hints="### Netzwerk-Kontext
+- Betroffenes Segment: (LAN | IoT | VLAN | WiFi 2.4 / 5 GHz)
+- OpenWrt-Node:        (EG | OG | UG)
+- Symptom:             (kein Internet | kein DNS | kein Roaming)
+- \`ip route\` / \`iw dev\` Output: (hier einfügen)"
+      ;;
+    backend)
+      scenario_hints="### Backend-Kontext
+- Service:   Quarkus (CT112 dev :8440 | CT116 prod :8081)
+- Endpoint:
+- HTTP-Status / Curl-Output: (hier einfügen)
+- \`brainhome devctl webserver logs backend-dev\` Output: (hier einfügen)"
+      ;;
+    frontend)
+      scenario_hints="### Frontend-Kontext
+- Service:   Angular (CT112 :4200)
+- Betroffene Route / Komponente:
+- Browser-Konsole Fehler: (hier einfügen)
+- \`brainhome devctl webserver logs frontend-dev\` Output: (hier einfügen)"
+      ;;
+    docker|compose)
+      scenario_hints="### Docker/Compose-Kontext
+- Modul/Stack:      (z. B. brainhome-platform)
+- Compose-Datei:    (Pfad zu docker-compose.yml)
+- Betroffener Service / Container:
+- \`docker compose ps\` Output:        (hier einfügen)
+- \`docker compose logs <service>\`:    (hier einfügen)
+- \`docker inspect <container>\` (bei Volumes/Netzwerk): (optional)"
+      ;;
+    keycloak|auth)
+      scenario_hints="### Keycloak/Auth-Kontext
+- Keycloak-Version:  (CT107 @ 192.168.188.107)
+- Realm / Client:
+- Fehler:            (z. B. 401 / redirect loop / CORS)
+- \`/opt/keycloak/bin/kc.sh show-config\` Output: (optional)
+- Browser Redirect-URL + Fehlermeldung: (hier einfügen)"
+      ;;
+    grafana|monitoring)
+      scenario_hints="### Grafana/Monitoring-Kontext
+- Grafana-Version:   (CT219 @ 192.168.188.108)
+- Dashboard / Panel / Alert:
+- Datasource:        (Prometheus | InfluxDB | ...)
+- Fehlermeldung / Query: (hier einfügen)
+- \`brainhome devctl grafana logs\` Output: (hier einfügen)"
+      ;;
+    nextcloud|cloud)
+      scenario_hints="### Nextcloud-Kontext
+- Nextcloud-Version: (Admin → Administration → Übersicht)
+- Host / CT:         (IP + Container-ID)
+- Betroffener Bereich: (Sync | Upload | Sharing | App | Login)
+- \`sudo -u www-data php /var/www/html/occ status\` Output:
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- \`sudo -u www-data php /var/www/html/occ log:tail\` (letzte 20 Zeilen):
+  \`\`\`
+  (hier einfügen)
+  \`\`\`
+- Fehler in nextcloud.log (/var/www/html/data/nextcloud.log): (hier einfügen)
+- Browser-Konsole Fehler (falls WebUI betroffen): (hier einfügen)"
+      ;;
+    fritzbox|fritz|router)
+      scenario_hints="### Fritzbox-Kontext
+- Fritzbox-Modell:   (z. B. FRITZ!Box 7590 AX)
+- Firmware-Version:  (Einstellungen → System → Firmware)
+- Betroffene Funktion: (DHCP | VPN | Port-Weiterleitung | Telefonie | WAN)
+- Symptom:           (kein Internet | Gerät nicht erreichbar | DNS falsch)
+- Fritzbox-IP:       192.168.188.1 (Standard)
+- \`fritz.box/diag/\ Diagnosebericht\` heruntergeladen: ja / nein
+- Pi-hole erreichbar: ja / nein (192.168.188.251)
+- Letzter Router-Neustart: "
+      ;;
+    workstation|ssh|desktop)
+      scenario_hints="### Workstation-Kontext
+- Hostname:          brainhome-workstation (192.168.188.193)
+- OS / Version:      (uname -a Output)
+- Betroffenes Tool:  (brainhome CLI | VS Code | SSH | Docker | Proxmox API)
+- \`systemctl status <dienst>\` Output: (hier einfügen)
+- Verfügbarer Speicher (\`df -h\`): (hier einfügen)
+- RAM-Auslastung (\`free -h\`): (hier einfügen)
+- Laufende Prozesse (\`ps aux | grep <name>\`): (hier einfügen)"
+      ;;
+    brainpi|eingang|camera|doorbell)
+      scenario_hints="### BrainPi Eingang-Kontext
+- Hardware:          Raspberry Pi (Eingang-Kamera-Node)
+- IP / Hostname:     (aus Pi-hole Inventory)
+- Betroffene Funktion: (Kamera | Türklingel | Motion | RTSP-Stream | MQTT)
+- \`systemctl status <dienst>\` Output auf Pi: (hier einfügen)
+- HomeAssistant-Integration erreichbar: ja / nein
+- MQTT-Broker erreichbar: ja / nein
+- Letztes Kamera-Bild / Stream-URL: (hier einfügen)
+- journalctl -u <dienst> -n 30 Output: (hier einfügen)"
+      ;;
+    ai-edge|ai-meter|water-meter)
+      scenario_hints="### AI-on-the-Edge-Kontext
+- Gerät:             (Wasser- | Gas- | Stromzähler)
+- Hardware:          ESP32-CAM / AI-on-the-Edge Firmware
+- IP / Hostname:     (aus Pi-hole)
+- Firmware-Version:  (Web-UI → System → Version)
+- Betroffene Funktion: (OCR | MQTT | Home-Assistant-Integration | OTA)
+- Web-UI erreichbar (HTTP): ja / nein
+- MQTT-Topic / letzter Wert: (hier einfügen)
+- Fehlerbild (falscher OCR-Wert | kein Wert | Absturz):
+- /sdcard/log/main.log (letzte 20 Zeilen): (hier einfügen)"
+      ;;
+    *)
+      scenario_hints=""
+      ;;
+  esac
+
+  # ── Template ausgeben ──────────────────────────────────────────────────────
+  local separator="────────────────────────────────────────────────────────────────────"
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M')
+
+  echo ""
+  echo -e "${BOLD}${CYAN}$separator${NC}"
+  echo -e "${BOLD}${CYAN}  BrainHome Debug-Template  [$ts]${NC}"
+  echo -e "${BOLD}${CYAN}$separator${NC}"
+  echo ""
+  echo "Kopiere alles zwischen den ═══-Linien und füge es in die Anfrage ein:"
+  echo ""
+  echo -e "${YELLOW}══════════════════════════════════════════════════════════════════${NC}"
+  echo "### Problem"
+  echo "(kurzer Ein-Satz-Beschreibung: Was geht nicht? Was wurde erwartet?)"
+  echo ""
+  echo "$context_block"
+  echo ""
+  if [ -n "$scenario_hints" ]; then
+    echo "$scenario_hints"
+    echo ""
+  fi
+  echo "### Was ich gemacht habe"
+  echo "1. "
+  echo "2. "
+  echo "3. "
+  echo ""
+  echo "### Aktueller Zustand"
+  echo "- Fehlermeldung / Verhalten:"
+  echo '  ```'
+  echo "  (Fehlermeldung hier einfügen)"
+  echo '  ```'
+  echo "- Service läuft:   ja / nein"
+  echo "- Letzte Änderung: "
+  echo ""
+  echo "### Logs / Output"
+  echo '```'
+  echo "(brainhome devctl <modul> logs — oder systemctl / journalctl Output hier)"
+  echo '```'
+  echo ""
+  echo "### Screenshots"
+  echo "(Falls vorhanden: alle auf einmal anhängen, nicht einzeln)"
+  echo ""
+  echo "### Meine Fragen"
+  echo "1. (Root Cause?)"
+  echo "2. (Fix-Schritte?)"
+  echo "3. (Wie verhindern?)"
+  echo -e "${YELLOW}══════════════════════════════════════════════════════════════════${NC}"
+  echo ""
+  echo -e "${GREEN}Tipp:${NC} Alle Infos in EINE Nachricht → weniger Rate-Limits, schnellere Antwort"
+  if [ -n "$module" ]; then
+    echo -e "${BLUE}Logs jetzt holen:${NC}  brainhome devctl $module logs"
+    echo -e "${BLUE}Status prüfen:${NC}    brainhome devctl $module status"
+  fi
+  echo ""
+
+  # -- with-context: append full infra context after the template ─────────
+  if [ "$with_context" -eq 1 ]; then
+    echo -e "${BOLD}${CYAN}── INFRASTRUKTUR-KONTEXT (für AI) ──────────────────────────────${NC}"
+    cmd_context ${module:+--module "$module"}
+  fi
+}
+
+cmd_diagnose() {
+  # One-shot AI-ready diagnostic bundle: health + ports + validate + context + recent logs
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local as_json=0
+  local with_logs=0
+  local log_lines=30
+  local timeout_s=5
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --json)           as_json=1 ;;
+      --logs)           with_logs=1 ;;
+      --log-lines=*)    log_lines="${1#*=}" ;;
+      --timeout=*)      timeout_s="${1#*=}" ;;
+      --help|-h)
+        echo "Usage: brainhome diagnose [<module>|all] [--json] [--logs] [--log-lines=N] [--timeout=N]"
+        echo ""
+        echo "Aggregiert: health + ports + validate + context in einem Output."
+        echo "Optimal für AI-Anfragen: alles auf einmal übergeben."
+        return 0
+        ;;
+      *) [ -z "$module" ] && module="$1" ;;
+    esac
+    shift
+  done
+
+  # Auto-detect module from cwd if not given
+  if [ -z "$module" ]; then
+    module=$(detect_module 2>/dev/null || true)
+  fi
+
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M:%S')
+
+  if [ "$as_json" -eq 1 ]; then
+    # Machine-readable JSON bundle
+    local health_json="{}" ports_json="{}" validate_json="{}" context_json="{}"
+
+    health_json=$(cmd_health "${module:-}" --json --timeout="$timeout_s" 2>/dev/null || echo '{"error":"health failed"}')
+    ports_json=$(cmd_ports "${module:-}" --json --timeout="$timeout_s" 2>/dev/null  || echo '{"error":"ports failed"}')
+    validate_json=$(cmd_validate "${module:-}" --json 2>/dev/null                    || echo '{"error":"validate failed"}')
+    context_json=$( ([ -n "$module" ] && cmd_context --module "$module" --json || cmd_context --json) 2>/dev/null || echo '{"error":"context failed"}')
+
+    jq -n \
+      --arg ts "$ts" \
+      --arg focus "${module:-}" \
+      --argjson health   "$health_json" \
+      --argjson ports    "$ports_json" \
+      --argjson validate "$validate_json" \
+      --argjson ctx      "$context_json" \
+      '{
+        generated_at: $ts,
+        focus_module: (if $focus != "" then $focus else null end),
+        health:   $health,
+        ports:    $ports,
+        validate: $validate,
+        context:  $ctx
+      }'
+    return 0
+  fi
+
+  # ── Human-readable output ─────────────────────────────────────────────────
+  local sep="══════════════════════════════════════════════════════════════════════"
+  echo ""
+  echo -e "${BOLD}${CYAN}$sep${NC}"
+  if [ -n "$module" ]; then
+    echo -e "${BOLD}${CYAN}  BrainHome Diagnose: $module  [$ts]${NC}"
+  else
+    echo -e "${BOLD}${CYAN}  BrainHome Diagnose (global)  [$ts]${NC}"
+  fi
+  echo -e "${BOLD}${CYAN}$sep${NC}"
+
+  echo ""
+  echo -e "${BOLD}1/4 — HEALTH${NC}"
+  cmd_health "${module:-}" --timeout="$timeout_s" 2>/dev/null || true
+
+  echo -e "${BOLD}2/4 — PORTS${NC}"
+  cmd_ports "${module:-}" --timeout="$timeout_s" 2>/dev/null || true
+
+  echo ""
+  echo -e "${BOLD}3/4 — VALIDATE${NC}"
+  cmd_validate "${module:-}" 2>/dev/null || true
+
+  echo ""
+  echo -e "${BOLD}4/4 — KONTEXT${NC}"
+  if [ -n "$module" ]; then
+    cmd_context --module "$module" 2>/dev/null || true
+  else
+    cmd_context 2>/dev/null || true
+  fi
+
+  if [ "$with_logs" -eq 1 ] && [ -n "$module" ] && module_exists "$module"; then
+    echo ""
+    echo -e "${BOLD}5/5 — LOGS (letzte $log_lines Zeilen)${NC}"
+    cmd_logs "$module" "" "$log_lines" 2>/dev/null || log_warn "Logs nicht erreichbar"
+  fi
+
+  echo ""
+  echo -e "${GREEN}Diagnose komplett — alles kopieren für AI-Anfrage.${NC}"
+  echo -e "${BLUE}JSON-Export:${NC}  brainhome diagnose ${module:+$module }--json"
+  echo ""
+}
+
+cmd_env() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local show_secrets=0
+  local as_json=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --show-secrets|-s) show_secrets=1 ;;
+      --json)            as_json=1 ;;
+      --help|-h)
+        echo "Usage: brainhome env [<module>] [--show-secrets] [--json]"
+        echo ""
+        echo "Zeigt .env / brainhome.env Dateien eines Moduls (Secrets maskiert)."
+        echo "  --show-secrets   Zeigt auch sensitive Werte (Vorsicht!)"
+        return 0
+        ;;
+      *) [ -z "$module" ] && module="$1" ;;
+    esac
+    shift
+  done
+
+  # Auto-detect
+  if [ -z "$module" ]; then
+    module=$(detect_module 2>/dev/null || true)
+  fi
+
+  if [ -z "$module" ]; then
+    log_error "Kein Modul angegeben und kein Modul auto-detektiert"
+    log_error "Usage: brainhome env <module>"
+    return 1
+  fi
+
+  if ! module_exists "$module"; then
+    log_error "Unbekanntes Modul: $module"
+    return 1
+  fi
+
+  local mpath
+  mpath=$(get_module_path "$module")
+
+  # Collect candidate env files
+  local -a env_files=()
+  local candidates=(
+    "$mpath/.env"
+    "$mpath/.env.local"
+    "$mpath/.env.development"
+    "$mpath/.env.production"
+    "$mpath/brainhome.env"
+    "$mpath/config/.env"
+    "$mpath/config/brainhome.env"
+  )
+  local f
+  for f in "${candidates[@]}"; do
+    [ -f "$f" ] && env_files+=("$f")
+  done
+
+  if [ ${#env_files[@]} -eq 0 ]; then
+    log_warn "Keine .env Dateien gefunden für Modul: $module (Pfad: $mpath)"
+    return 0
+  fi
+
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M:%S')
+
+  # Secret patterns — values matching these are masked unless --show-secrets
+  local secret_patterns="PASSWORD|SECRET|TOKEN|KEY|PASS|CREDENTIAL|AUTH|API_KEY|PRIVATE"
+
+  if [ "$as_json" -eq 1 ]; then
+    local result_json="[]"
+    for f in "${env_files[@]}"; do
+      local entries_json="[]"
+      while IFS='=' read -r key value || [ -n "$key" ]; do
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${key// /}" ]] && continue
+        key=$(echo "$key" | xargs)
+        local is_secret=0
+        if echo "$key" | grep -qiE "$secret_patterns"; then
+          is_secret=1
+          [ "$show_secrets" -eq 0 ] && value="***"
+        fi
+        local entry
+        entry=$(jq -n --arg k "$key" --arg v "$value" --argjson s "$is_secret" \
+          '{key: $k, value: $v, is_secret: ($s == 1)}')
+        entries_json=$(echo "$entries_json" | jq --argjson e "$entry" '. += [$e]')
+      done < "$f"
+      local file_item
+      file_item=$(jq -n --arg p "$f" --argjson e "$entries_json" '{file: $p, entries: $e}')
+      result_json=$(echo "$result_json" | jq --argjson i "$file_item" '. += [$i]')
+    done
+    jq -n --arg ts "$ts" --arg m "$module" --argjson r "$result_json" \
+      '{generated_at: $ts, module: $m, env_files: $r}'
+    return 0
+  fi
+
+  header "Env: $module  [$ts]"
+
+  for f in "${env_files[@]}"; do
+    echo ""
+    echo -e "${BOLD}${BLUE}── $f${NC}"
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+      [[ "$key" =~ ^[[:space:]]*# ]] && { echo -e "  ${YELLOW}${key}${NC}"; continue; }
+      [[ -z "${key// /}" ]] && echo "" && continue
+      key=$(echo "$key" | xargs)
+      if echo "$key" | grep -qiE "$secret_patterns" && [ "$show_secrets" -eq 0 ]; then
+        printf "  %-36s = ${RED}***${NC}\n" "$key"
+      else
+        printf "  %-36s = %s\n" "$key" "$value"
+      fi
+    done < "$f"
+  done
+
+  echo ""
+  [ "$show_secrets" -eq 0 ] && echo -e "${YELLOW}Secrets maskiert.${NC} Vollständig: brainhome env $module --show-secrets"
+  echo ""
+}
+
+cmd_watch() {
+  # Live streaming log tail — single module or all modules (labelled + coloured)
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local service=""
+  local lines=0          # 0 = pure stream; N = --lines=N head before streaming
+  local all_modules=0
+  local timeout_s=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --service=*)  service="${1#*=}" ;;
+      --service)    service="${2:-}"; shift ;;
+      --lines=*)    lines="${1#*=}" ;;
+      --all)        all_modules=1 ;;
+      --timeout=*)  timeout_s="${1#*=}" ;;
+      --help|-h)
+        echo "Usage: brainhome watch [<module>|all] [--service=<svc>] [--lines=N] [--timeout=N]"
+        echo ""
+        echo "Streams live logs. Ctrl-C to stop."
+        echo "  <module>         Single module (auto-detect from cwd if omitted)"
+        echo "  all              All modules in parallel (colour-labelled)"
+        echo "  --service=<svc>  Focus on one systemd unit or docker service"
+        echo "  --lines=N        Show last N lines before streaming (default: 0)"
+        echo "  --timeout=N      Stop after N seconds (default: stream forever)"
+        return 0
+        ;;
+      all)  all_modules=1 ;;
+      *)    [ -z "$module" ] && module="$1" ;;
+    esac
+    shift
+  done
+
+  # --all: stream all registered modules in parallel with colour labels
+  if [ "$all_modules" -eq 1 ] || [ "$module" = "all" ]; then
+    header "Live Logs — alle Module (Ctrl-C zum Beenden)"
+    local -a colors=('\033[0;36m' '\033[0;32m' '\033[1;33m' '\033[0;35m' '\033[0;34m' '\033[1;32m' '\033[0;31m' '\033[1;36m')
+    local idx=0
+    local -a pids=()
+    while IFS= read -r mod; do
+      [ -z "$mod" ] && continue
+      local col="${colors[$((idx % ${#colors[@]}))]}"
+      local label
+      label=$(printf "%-18s" "$mod")
+      # Stream logs for this module in background, prefix each line
+      (
+        local ct
+        ct=$(get_container_type "$mod")
+        local mi
+        mi=$(get_module_info "$mod")
+        local head_flag=""
+        [ "$lines" -gt 0 ] && head_flag="-n $lines"
+        case "$ct" in
+          lxc)
+            local cid
+            cid=$(echo "$mi" | jq -r '.container.id // ""')
+            [ -z "$cid" ] && exit 0
+            if [ -n "$service" ]; then
+              pct exec "$cid" -- journalctl -u "$service" -f ${head_flag} 2>/dev/null
+            else
+              pct exec "$cid" -- journalctl -f ${head_flag} 2>/dev/null
+            fi
+            ;;
+          docker)
+            local mp
+            mp=$(get_module_path "$mod")
+            cd "$mp" 2>/dev/null || exit 0
+            if [ -n "$service" ]; then
+              docker compose logs -f ${head_flag:+--tail "$lines"} "$service" 2>/dev/null
+            else
+              docker compose logs -f ${head_flag:+--tail "$lines"} 2>/dev/null
+            fi
+            ;;
+          ssh)
+            local h
+            h=$(echo "$mi" | jq -r '.container.hosts[0] // ""')
+            [ -z "$h" ] && exit 0
+            if [ -n "$service" ]; then
+              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$h" \
+                "journalctl -u $service -f ${head_flag}" 2>/dev/null
+            else
+              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$h" \
+                "journalctl -f ${head_flag}" 2>/dev/null
+            fi
+            ;;
+          local)
+            if [ -n "$service" ]; then
+              journalctl -u "$service" -f ${head_flag} 2>/dev/null
+            else
+              journalctl -f ${head_flag} 2>/dev/null
+            fi
+            ;;
+        esac
+      ) 2>/dev/null | while IFS= read -r line; do
+          echo -e "${col}[${label}]${NC} $line"
+        done &
+      pids+=("$!")
+      idx=$((idx + 1))
+    done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+
+    if [ "$timeout_s" -gt 0 ]; then
+      sleep "$timeout_s"
+      local pid
+      for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+    else
+      trap 'for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done; exit 0' INT TERM
+      wait
+    fi
+    return 0
+  fi
+
+  # Single module
+  if [ -z "$module" ]; then
+    module=$(detect_module 2>/dev/null || true)
+  fi
+  if [ -z "$module" ]; then
+    log_error "Kein Modul angegeben. Usage: brainhome watch <module|all>"
+    return 1
+  fi
+  if ! module_exists "$module"; then
+    log_error "Unbekanntes Modul: $module"
+    return 1
+  fi
+
+  local container_type
+  container_type=$(get_container_type "$module")
+  local module_info
+  module_info=$(get_module_info "$module")
+
+  header "Live Logs: $module ($container_type)  [Ctrl-C zum Beenden]"
+  local head_opt=""
+  [ "$lines" -gt 0 ] && head_opt="-n $lines"
+
+  case "$container_type" in
+    lxc)
+      local ct_id
+      ct_id=$(echo "$module_info" | jq -r '.container.id // ""')
+      if [ -z "$ct_id" ]; then log_error "LXC ID fehlt"; return 1; fi
+      if [ -n "$service" ]; then
+        pct exec "$ct_id" -- journalctl -u "$service" -f ${head_opt}
+      else
+        pct exec "$ct_id" -- journalctl -f ${head_opt}
+      fi
+      ;;
+    docker)
+      cd "$(get_module_path "$module")" || return 1
+      if [ -n "$service" ]; then
+        docker compose logs -f ${lines:+--tail "$lines"} "$service"
+      else
+        docker compose logs -f ${lines:+--tail "$lines"}
+      fi
+      ;;
+    ssh)
+      local host
+      host=$(echo "$module_info" | jq -r '.container.hosts[0] // ""')
+      if [ -z "$host" ]; then log_error "SSH host fehlt"; return 1; fi
+      if [ -n "$service" ]; then
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" \
+          "journalctl -u $service -f ${head_opt}"
+      else
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$host" \
+          "journalctl -f ${head_opt}"
+      fi
+      ;;
+    local)
+      if [ -n "$service" ]; then
+        journalctl -u "$service" -f ${head_opt}
+      else
+        journalctl -f ${head_opt}
+      fi
+      ;;
+    *)
+      log_error "Unbekannter Container-Typ: $container_type"
+      return 1
+      ;;
+  esac
+}
+
+cmd_snapshot() {
+  # Freeze current infrastructure state to a JSON file for rollback comparison.
+  # Captures: git HEAD + dirty status per module, port reachability, validate results.
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local save=0
+  local diff_mode=0
+  local snap_a="" snap_b=""
+  local snapshot_dir="$TOOLS_ROOT/logs/snapshots"
+  local label=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --save)        save=1 ;;
+      --label=*)     label="${1#*=}" ;;
+      --label)       label="${2:-}"; shift ;;
+      --diff)
+        diff_mode=1
+        snap_a="${2:-}"; snap_b="${3:-}"
+        [ -n "$snap_a" ] && shift
+        [ -n "$snap_b" ] && shift
+        ;;
+      --dir=*)       snapshot_dir="${1#*=}" ;;
+      --help|-h)
+        echo "Usage: brainhome snapshot [<module>|all] [--save] [--label=<name>]"
+        echo "       brainhome snapshot --diff [snap_a.json] [snap_b.json]"
+        echo ""
+        echo "Friert den aktuellen Zustand ein:"
+        echo "  git HEAD + dirty-Status je Modul"
+        echo "  Port-Erreichbarkeit (aus Inventory)"
+        echo "  Validate-Ergebnis (.brainhome.yml)"
+        echo ""
+        echo "  --save           Speichert Snapshot unter $snapshot_dir/"
+        echo "  --label=<name>   Zusätzlicher Label im Dateinamen"
+        echo "  --diff [a] [b]   Vergleicht zwei gespeicherte Snapshots"
+        echo "                   (letzten 2 automatisch ermittelt, wenn keine Argumente)"
+        return 0
+        ;;
+      all) module="" ;;
+      *)   [ -z "$module" ] && module="$1" ;;
+    esac
+    shift
+  done
+
+  # ── Diff mode ──────────────────────────────────────────────────────────────
+  if [ "$diff_mode" -eq 1 ]; then
+    # Auto-pick last 2 snapshots if none given
+    if [ -z "$snap_a" ] || [ -z "$snap_b" ]; then
+      local -a snaps=()
+      if [ -d "$snapshot_dir" ]; then
+        while IFS= read -r f; do snaps+=("$f"); done < \
+          <(find "$snapshot_dir" -maxdepth 1 -name "*.json" | sort -r | head -2)
+      fi
+      if [ ${#snaps[@]} -lt 2 ]; then
+        log_error "Weniger als 2 Snapshots gefunden unter $snapshot_dir"
+        log_error "Hinweis: brainhome snapshot --save  (erstellt Snapshot)"
+        return 1
+      fi
+      snap_b="${snaps[0]}"   # newer
+      snap_a="${snaps[1]}"   # older
+    fi
+    if [ ! -f "$snap_a" ] || [ ! -f "$snap_b" ]; then
+      log_error "Snapshot-Datei nicht gefunden: ${snap_a:-?} / ${snap_b:-?}"
+      return 1
+    fi
+    header "Snapshot Diff"
+    echo -e "${BLUE}Vorher:${NC}  $snap_a  ($(jq -r '.generated_at // "?"' "$snap_a" 2>/dev/null))"
+    echo -e "${BLUE}Nachher:${NC} $snap_b  ($(jq -r '.generated_at // "?"' "$snap_b" 2>/dev/null))"
+    echo ""
+
+    # Compare git hashes
+    local changed_git=0
+    while IFS= read -r mod; do
+      local ha hb dirty_a dirty_b
+      ha=$(jq -r ".modules.\"$mod\".git_hash // \"(none)\"" "$snap_a" 2>/dev/null)
+      hb=$(jq -r ".modules.\"$mod\".git_hash // \"(none)\"" "$snap_b" 2>/dev/null)
+      dirty_a=$(jq -r ".modules.\"$mod\".git_dirty // false" "$snap_a" 2>/dev/null)
+      dirty_b=$(jq -r ".modules.\"$mod\".git_dirty // false" "$snap_b" 2>/dev/null)
+      if [ "$ha" != "$hb" ] || [ "$dirty_a" != "$dirty_b" ]; then
+        [ "$changed_git" -eq 0 ] && echo -e "${BOLD}GIT ÄNDERUNGEN${NC}" && changed_git=1
+        printf "  %-22s  %s → %s" "$mod" "${ha:0:8}" "${hb:0:8}"
+        [ "$dirty_b" = "true" ] && printf " ${YELLOW}[dirty]${NC}"
+        echo ""
+      fi
+    done < <(jq -r '.modules | keys[]' "$snap_b" 2>/dev/null | sort)
+    [ "$changed_git" -eq 0 ] && echo -e "${GREEN}Git: keine Änderungen${NC}"
+
+    echo ""
+    # Compare port states
+    local changed_ports=0
+    while IFS= read -r port_entry; do
+      local key state_a state_b
+      key=$(echo "$port_entry" | jq -r '.key')
+      state_a=$(jq -r ".ports[\"$key\"] // \"unknown\"" "$snap_a" 2>/dev/null)
+      state_b=$(echo "$port_entry" | jq -r '.state')
+      if [ "$state_a" != "$state_b" ]; then
+        [ "$changed_ports" -eq 0 ] && echo -e "${BOLD}PORT-ÄNDERUNGEN${NC}" && changed_ports=1
+        local color_b="$GREEN"
+        [ "$state_b" != "open" ] && color_b="$RED"
+        printf "  %-30s  %s → ${color_b}%s${NC}\n" "$key" "$state_a" "$state_b"
+      fi
+    done < <(jq -r '.ports | to_entries[] | {key: .key, state: .value}' "$snap_b" 2>/dev/null)
+    [ "$changed_ports" -eq 0 ] && echo -e "${GREEN}Ports: keine Änderungen${NC}"
+    echo ""
+    return 0
+  fi
+
+  # ── Build snapshot ─────────────────────────────────────────────────────────
+  local ts
+  ts=$(date '+%Y-%m-%dT%H:%M:%S')
+  local ts_file
+  ts_file=$(date '+%Y%m%d-%H%M%S')
+
+  log_info "Erstelle Snapshot [$ts]..."
+
+  # Git state per module
+  local modules_json_out="{}"
+  local -a mod_list=()
+  if [ -n "$module" ] && module_exists "$module"; then
+    mod_list+=("$module")
+  else
+    while IFS= read -r m; do mod_list+=("$m"); done \
+      < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+  fi
+
+  local mod
+  for mod in "${mod_list[@]}"; do
+    local mpath
+    mpath=$(get_module_path "$mod" 2>/dev/null || true)
+    local git_hash="(no-repo)" git_dirty=false git_branch="?"
+    if [ -n "$mpath" ] && [ -d "$mpath/.git" ]; then
+      git_hash=$(git -C "$mpath" rev-parse --short HEAD 2>/dev/null || echo "(error)")
+      git_branch=$(git -C "$mpath" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+      local dirty_out
+      dirty_out=$(git -C "$mpath" status --porcelain 2>/dev/null)
+      [ -n "$dirty_out" ] && git_dirty=true
+    fi
+    local mod_entry
+    mod_entry=$(jq -n \
+      --arg h "$git_hash" --arg b "$git_branch" --argjson d "$git_dirty" \
+      '{git_hash: $h, git_branch: $b, git_dirty: $d}')
+    modules_json_out=$(echo "$modules_json_out" | jq --arg k "$mod" --argjson v "$mod_entry" '. + {($k): $v}')
+  done
+
+  # Port state from inventory
+  local ports_json="{}"
+  local INVENTORY="$TOOLS_ROOT/config/inventory.json"
+  if [ -f "$INVENTORY" ]; then
+    while IFS=$'\t' read -r name ip port; do
+      [ -z "$ip" ] || [ -z "$port" ] && continue
+      local key="$name:$port"
+      local state="closed"
+      if timeout 2 bash -c ">/dev/tcp/$ip/$port" 2>/dev/null; then
+        state="open"
+      fi
+      ports_json=$(echo "$ports_json" | jq --arg k "$key" --arg s "$state" '. + {($k): $s}')
+    done < <(jq -r '.guests[] | select(.ports != null) | .ports[] as $p |
+      [(.name // "?"), (.ip // ""), ($p | tostring)] | @tsv' "$INVENTORY" 2>/dev/null)
+  fi
+
+  # Validate results
+  local validate_json="{}"
+  validate_json=$(cmd_validate "${module:-}" --json 2>/dev/null || echo '{"error":"validate failed"}')
+
+  local final_json
+  final_json=$(jq -n \
+    --arg ts "$ts" \
+    --arg focus "${module:-all}" \
+    --arg lbl "${label:-}" \
+    --argjson mods "$modules_json_out" \
+    --argjson ports "$ports_json" \
+    --argjson validate "$validate_json" \
+    '{
+      generated_at: $ts,
+      focus: $focus,
+      label: (if $lbl != "" then $lbl else null end),
+      modules: $mods,
+      ports: $ports,
+      validate: $validate
+    }')
+
+  # Output or save
+  if [ "$save" -eq 1 ]; then
+    mkdir -p "$snapshot_dir"
+    local lbl_str=""
+    [ -n "$label" ] && lbl_str="-${label// /_}"
+    local fname="${snapshot_dir}/${ts_file}${lbl_str}.json"
+    echo "$final_json" > "$fname"
+    log_success "Snapshot gespeichert: $fname"
+    echo ""
+    echo "$final_json" | jq '{generated_at, focus, label, module_count: (.modules | length), port_count: (.ports | length)}'
+  else
+    echo "$final_json" | jq .
+  fi
+}
+
+cmd_health() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local timeout_s=5
+  local quiet=0
+  local as_json=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --timeout=*) timeout_s="${1#*=}" ;;
+      --quiet|-q)  quiet=1 ;;
+      --json)      as_json=1 ;;
+      *) ;;
+    esac
+    shift
+  done
+
+  local INVENTORY="$TOOLS_ROOT/config/infrastructure-inventory.json"
+
+  # Collect modules to check
+  local -a check_modules=()
+  if [ -n "$module" ] && [ "$module" != "all" ]; then
+    if ! module_exists "$module"; then
+      log_error "Unknown module: $module"
+      return 1
+    fi
+    check_modules=("$module")
+  else
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      check_modules+=("$m")
+    done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+  fi
+
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M:%S')
+
+  [ "$as_json" -eq 0 ] && [ "$quiet" -eq 0 ] && header "Health Check  [$ts]"
+
+  local -a results=()
+  local ok_count=0
+  local fail_count=0
+
+  local m
+  for m in "${check_modules[@]}"; do
+    local minfo ctype
+    minfo=$(get_module_info "$m")
+    ctype=$(echo "$minfo" | jq -r '.container.type // "local"')
+
+    local -a targets=()
+    case "$ctype" in
+      lxc)
+        local ct_id ip
+        ct_id=$(echo "$minfo" | jq -r '.container.id // ""')
+        # look up IP from inventory
+        ip=""
+        [ -f "$INVENTORY" ] && ip=$(jq -r ".guests[] | select(.module == \"$m\") | .ip" "$INVENTORY" 2>/dev/null | head -1)
+        [ -n "$ip" ] && targets+=("$ip")
+        ;;
+      ssh)
+        while IFS= read -r h; do
+          [ -z "$h" ] && continue
+          # strip user@ prefix for ping
+          targets+=("${h#*@}")
+        done < <(echo "$minfo" | jq -r '.container.hosts[]? // .container.host // empty' 2>/dev/null)
+        ;;
+      docker|local)
+        # check via service ports from inventory
+        if [ -f "$INVENTORY" ]; then
+          local ip
+          ip=$(jq -r ".guests[] | select(.module == \"$m\") | .ip" "$INVENTORY" 2>/dev/null | head -1)
+          [ -n "$ip" ] && targets+=("$ip")
+        fi
+        ;;
+    esac
+
+    local status="ok"
+    local detail=""
+    if [ ${#targets[@]} -eq 0 ]; then
+      status="skip"
+      detail="no IP configured"
+    else
+      local t
+      for t in "${targets[@]}"; do
+        # strip port if present, ping the host
+        local host="${t%%:*}"
+        if ! ping -c 1 -W "$timeout_s" "$host" >/dev/null 2>&1; then
+          status="fail"
+          detail="unreachable: $host"
+          break
+        fi
+      done
+      [ "$status" = "ok" ] && detail="${targets[*]}"
+    fi
+
+    case "$status" in
+      ok)   ok_count=$((ok_count + 1)) ;;
+      fail) fail_count=$((fail_count + 1)) ;;
+    esac
+
+    results+=("$m|$ctype|$status|$detail")
+
+    if [ "$as_json" -eq 0 ] && [ "$quiet" -eq 0 ]; then
+      case "$status" in
+        ok)   printf "  ${GREEN}%-24s %-10s ✓${NC}  %s\n"   "$m" "$ctype" "$detail" ;;
+        fail) printf "  ${RED}%-24s %-10s ✗${NC}  %s\n"     "$m" "$ctype" "$detail" ;;
+        skip) printf "  ${YELLOW}%-24s %-10s —${NC}  %s\n"  "$m" "$ctype" "$detail" ;;
+      esac
+    fi
+  done
+
+  if [ "$as_json" -eq 1 ]; then
+    local items="[]"
+    local r
+    for r in "${results[@]}"; do
+      IFS='|' read -r rm rc rs rd <<< "$r"
+      local item
+      item=$(jq -n --arg m "$rm" --arg ct "$rc" --arg st "$rs" --arg dt "$rd" \
+        '{module: $m, container_type: $ct, status: $st, detail: $dt}')
+      items=$(echo "$items" | jq --argjson i "$item" '. += [$i]')
+    done
+    jq -n --arg ts "$ts" --argjson r "$items" --argjson ok "$ok_count" --argjson fail "$fail_count" \
+      '{generated_at: $ts, ok: $ok, fail: $fail, results: $r}'
+    return 0
+  fi
+
+  if [ "$quiet" -eq 0 ]; then
+    echo ""
+    echo -e "  Total: ${GREEN}$ok_count ok${NC}  |  ${RED}$fail_count fail${NC}"
+    echo ""
+  fi
+
+  [ "$fail_count" -gt 0 ] && return 1
+  return 0
+}
+
+cmd_ssh() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  if [ -z "$module" ]; then
+    log_error "Usage: brainhome devctl ssh <module> [-- <remote-command>]"
+    return 1
+  fi
+
+  if ! module_exists "$module"; then
+    log_error "Unknown module: $module"
+    return 1
+  fi
+
+  local minfo ctype
+  minfo=$(get_module_info "$module")
+  ctype=$(echo "$minfo" | jq -r '.container.type // "local"')
+
+  local SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=no -o ConnectTimeout=10"
+  local target=""
+
+  case "$ctype" in
+    ssh)
+      target=$(echo "$minfo" | jq -r '.container.hosts[0] // .container.host // empty' 2>/dev/null)
+      if [ -z "$target" ]; then
+        log_error "Module $module: no SSH host configured"
+        return 1
+      fi
+      ;;
+    lxc)
+      local ct_id
+      ct_id=$(echo "$minfo" | jq -r '.container.id // ""')
+      if [ -z "$ct_id" ]; then
+        log_error "Module $module: LXC ID not configured"
+        return 1
+      fi
+      local INVENTORY="$TOOLS_ROOT/config/infrastructure-inventory.json"
+      local ct_node ip
+      ct_node=$([ -f "$INVENTORY" ] && jq -r ".guests[] | select(.id == ($ct_id | tonumber)) | .node" "$INVENTORY" 2>/dev/null | head -1 || echo "")
+      ip=$([ -f "$INVENTORY" ] && jq -r ".guests[] | select(.id == ($ct_id | tonumber)) | .ip" "$INVENTORY" 2>/dev/null | head -1 || echo "")
+
+      if [ -n "$ip" ]; then
+        log_info "SSH → CT$ct_id ($module) @ $ip"
+        if [ $# -gt 0 ]; then
+          exec ssh $SSH_OPTS "root@$ip" "$@"
+        else
+          exec ssh $SSH_OPTS "root@$ip"
+        fi
+      elif [ -n "$ct_node" ]; then
+        log_info "SSH → CT$ct_id ($module) via pct on $ct_node"
+        if [ $# -gt 0 ]; then
+          exec ssh $SSH_OPTS "root@$ct_node" "pct exec $ct_id -- $*"
+        else
+          log_warn "No direct IP found; opening pct exec shell on $ct_node"
+          exec ssh $SSH_OPTS "root@$ct_node"
+        fi
+      else
+        log_error "Cannot determine how to reach CT$ct_id — no IP in inventory and no node info"
+        return 1
+      fi
+      return 0
+      ;;
+    docker)
+      local module_path
+      module_path=$(get_module_path "$module")
+      local service
+      service=$(echo "$minfo" | jq -r '.container.service // empty' 2>/dev/null)
+      [ -z "$service" ] && service=$(echo "$minfo" | jq -r '.dev_services[0].name // empty' 2>/dev/null)
+      if [ -z "$service" ]; then
+        log_error "Module $module: no docker service configured for exec"
+        return 1
+      fi
+      log_info "docker compose exec → $module/$service"
+      cd "$module_path" || return 1
+      if [ $# -gt 0 ]; then
+        exec docker compose exec "$service" "$@"
+      else
+        exec docker compose exec "$service" bash
+      fi
+      return 0
+      ;;
+    local)
+      log_info "Module $module is local — opening local shell"
+      local module_path
+      module_path=$(get_module_path "$module")
+      cd "$module_path" || return 1
+      if [ $# -gt 0 ]; then
+        exec bash -c "$*"
+      else
+        exec bash
+      fi
+      return 0
+      ;;
+    *)
+      log_error "Unsupported container type for ssh: $ctype"
+      return 1
+      ;;
+  esac
+
+  log_info "SSH → $module @ $target"
+  if [ $# -gt 0 ]; then
+    exec ssh $SSH_OPTS "$target" "$@"
+  else
+    exec ssh $SSH_OPTS "$target"
+  fi
+}
+
+cmd_exec() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  if [ -z "$module" ]; then
+    log_error "Usage: brainhome devctl exec <module> <command>"
+    return 1
+  fi
+  if [ $# -eq 0 ]; then
+    log_error "Usage: brainhome devctl exec $module <command>"
+    return 1
+  fi
+  if ! module_exists "$module"; then
+    log_error "Unknown module: $module"
+    return 1
+  fi
+
+  log_info "Executing in $module: $*"
+  exec_in_container "$module" "$*"
+}
+
+cmd_ports() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local timeout_s=3
+  local as_json=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --timeout=*) timeout_s="${1#*=}" ;;
+      --json)      as_json=1 ;;
+      *) ;;
+    esac
+    shift
+  done
+
+  local INVENTORY="$TOOLS_ROOT/config/infrastructure-inventory.json"
+  if [ ! -f "$INVENTORY" ]; then
+    log_error "Inventory not found: $INVENTORY"
+    return 1
+  fi
+
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M:%S')
+  [ "$as_json" -eq 0 ] && header "Port Check  [$ts]"
+
+  # Determine scope
+  local -a guest_entries=()
+  if [ -n "$module" ] && [ "$module" != "all" ]; then
+    while IFS= read -r entry; do
+      guest_entries+=("$entry")
+    done < <(jq -c ".guests[] | select(.module == \"$module\")" "$INVENTORY" 2>/dev/null)
+    if [ ${#guest_entries[@]} -eq 0 ]; then
+      log_warn "No inventory guests found for module: $module"
+    fi
+  else
+    while IFS= read -r entry; do
+      guest_entries+=("$entry")
+    done < <(jq -c '.guests[]' "$INVENTORY" 2>/dev/null)
+  fi
+
+  local results_json="[]"
+  local entry
+  for entry in "${guest_entries[@]}"; do
+    local gname gip gmod gports
+    gname=$(echo "$entry" | jq -r '.name // "?"')
+    gip=$(echo "$entry"   | jq -r '.ip   // ""')
+    gmod=$(echo "$entry"  | jq -r '.module // ""')
+    gports=$(echo "$entry" | jq -r '(.ports // []) | map(tostring) | .[]' 2>/dev/null)
+
+    [ -z "$gip" ] && continue
+    [ -z "$gports" ] && continue
+
+    local port
+    while IFS= read -r port; do
+      [ -z "$port" ] && continue
+      local status="open"
+      if ! timeout "$timeout_s" bash -c "echo > /dev/tcp/$gip/$port" 2>/dev/null; then
+        status="closed"
+      fi
+
+      if [ "$as_json" -eq 0 ]; then
+        case "$status" in
+          open)   printf "  ${GREEN}%-22s %-18s %-6s ✓ open${NC}\n"   "$gname" "$gip" "$port" ;;
+          closed) printf "  ${RED}%-22s %-18s %-6s ✗ closed${NC}\n"   "$gname" "$gip" "$port" ;;
+        esac
+      else
+        local item
+        item=$(jq -n --arg name "$gname" --arg ip "$gip" --arg m "$gmod" \
+          --arg p "$port" --arg s "$status" \
+          '{name: $name, ip: $ip, module: $m, port: ($p | tonumber), status: $s}')
+        results_json=$(echo "$results_json" | jq --argjson i "$item" '. += [$i]')
+      fi
+    done <<< "$gports"
+  done
+
+  if [ "$as_json" -eq 1 ]; then
+    jq -n --arg ts "$ts" --argjson r "$results_json" '{generated_at: $ts, ports: $r}'
+  fi
+}
+
+cmd_diff() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local staged=0
+  local all=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --staged) staged=1 ;;
+      --all)    all=1 ;;
+      *) ;;
+    esac
+    shift
+  done
+
+  local -a check_modules=()
+  if [ -n "$module" ] && [ "$module" != "all" ]; then
+    if ! module_exists "$module"; then
+      log_error "Unknown module: $module"
+      return 1
+    fi
+    check_modules=("$module")
+  elif [ "$all" -eq 1 ] || [ "$module" = "all" ]; then
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      check_modules+=("$m")
+    done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+  else
+    # auto-detect
+    local self_module
+    self_module=$(detect_module 2>/dev/null || true)
+    if [ -z "$self_module" ]; then
+      log_error "No module specified and not in a module directory"
+      log_error "Usage: brainhome devctl diff [<module>|all] [--staged]"
+      return 1
+    fi
+    check_modules=("$self_module")
+  fi
+
+  local m
+  for m in "${check_modules[@]}"; do
+    local mpath
+    mpath=$(get_module_path "$m")
+    if [ -z "$mpath" ] || [ ! -d "$mpath/.git" ]; then
+      [ "${#check_modules[@]}" -gt 1 ] && continue
+      log_warn "Module $m has no git repo at $mpath"
+      continue
+    fi
+    header "Git diff: $m  ($mpath)"
+    if [ "$staged" -eq 1 ]; then
+      git -C "$mpath" diff --staged 2>/dev/null || log_warn "git diff --staged failed for $m"
+    else
+      git -C "$mpath" diff 2>/dev/null || log_warn "git diff failed for $m"
+      local untracked
+      untracked=$(git -C "$mpath" status --short 2>/dev/null | grep -c '^??' || true)
+      [ "$untracked" -gt 0 ] && log_info "$untracked untracked file(s) — use 'git status -s' in $mpath"
+    fi
+    echo ""
+  done
+}
+
+cmd_validate() {
+  local module="${1:-}"
+  shift 2>/dev/null || true
+
+  local verbose=0
+  local as_json=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --verbose|-v) verbose=1 ;;
+      --json)       as_json=1 ;;
+      *) ;;
+    esac
+    shift
+  done
+
+  local -a check_modules=()
+  if [ -n "$module" ] && [ "$module" != "all" ]; then
+    check_modules=("$module")
+  else
+    while IFS= read -r m; do
+      [ -z "$m" ] && continue
+      check_modules+=("$m")
+    done < <(jq -r '.modules | keys[]' "$MODULES_JSON" 2>/dev/null | sort)
+  fi
+
+  local ts
+  ts=$(date '+%Y-%m-%d %H:%M:%S')
+  [ "$as_json" -eq 0 ] && header "Validate .brainhome.yml  [$ts]"
+
+  local ok_count=0
+  local warn_count=0
+  local fail_count=0
+  local results_json="[]"
+
+  local m
+  for m in "${check_modules[@]}"; do
+    local mpath
+    mpath=$(get_module_path "$m")
+    local yml="$mpath/.brainhome.yml"
+    local -a issues=()
+    local status="ok"
+
+    if [ ! -f "$yml" ]; then
+      issues+=("missing .brainhome.yml")
+      status="fail"
+    else
+      # Required fields
+      local check_name check_path check_type
+      check_name=$(jq -r '.name // empty'        "$yml" 2>/dev/null || true)
+      check_path=$(jq -r '.path // empty'        "$yml" 2>/dev/null || true)
+      check_type=$(jq -r '.module_type // empty' "$yml" 2>/dev/null || true)
+
+      [ -z "$check_name" ] && issues+=("missing: name")
+      [ -z "$check_path" ] && issues+=("missing: path")
+      [ -z "$check_type" ] && issues+=("missing: module_type")
+
+      # Container sanity
+      local ctype ct_id
+      ctype=$(jq -r '.container.type // empty' "$yml" 2>/dev/null || true)
+      ct_id=$(jq -r '.container.id   // empty' "$yml" 2>/dev/null || true)
+      [ -z "$ctype" ] && issues+=("missing: container.type")
+      if [ "$ctype" = "lxc" ] && [ -z "$ct_id" ]; then
+        issues+=("lxc container missing id")
+      fi
+      if [ "$ctype" = "ssh" ]; then
+        local ssh_host
+        ssh_host=$(jq -r '(.container.hosts[0] // .container.host) // empty' "$yml" 2>/dev/null || true)
+        [ -z "$ssh_host" ] && issues+=("ssh container missing host/hosts")
+      fi
+
+      # Path exists?
+      [ -n "$check_path" ] && [ ! -d "$check_path" ] && issues+=("path does not exist: $check_path")
+
+      # Dependencies registered?
+      local dep
+      while IFS= read -r dep; do
+        [ -z "$dep" ] && continue
+        if ! module_exists "$dep"; then
+          issues+=("dependency not in registry: $dep")
+          [ "$status" = "ok" ] && status="warn"
+        fi
+      done < <(jq -r '.dependencies[]?' "$yml" 2>/dev/null)
+
+      [ "${#issues[@]}" -gt 0 ] && [ "$status" = "ok" ] && status="warn"
+      local fatal=()
+      for i in "${issues[@]}"; do
+        [[ "$i" == missing* ]] && fatal+=("$i")
+      done
+      [ "${#fatal[@]}" -gt 0 ] && status="fail"
+    fi
+
+    case "$status" in
+      ok)   ok_count=$((ok_count + 1)) ;;
+      warn) warn_count=$((warn_count + 1)) ;;
+      fail) fail_count=$((fail_count + 1)) ;;
+    esac
+
+    if [ "$as_json" -eq 0 ]; then
+      case "$status" in
+        ok)   printf "  ${GREEN}%-26s ✓${NC}\n" "$m" ;;
+        warn) printf "  ${YELLOW}%-26s ⚠  %s${NC}\n" "$m" "${issues[*]}" ;;
+        fail) printf "  ${RED}%-26s ✗  %s${NC}\n"    "$m" "${issues[*]}" ;;
+      esac
+      if [ "$verbose" -eq 1 ] && [ "${#issues[@]}" -gt 0 ]; then
+        for iss in "${issues[@]}"; do
+          echo "       → $iss"
+        done
+      fi
+    else
+      local issues_json
+      issues_json=$(printf '%s\n' "${issues[@]:-}" | jq -R . | jq -s 'map(select(length>0))')
+      local item
+      item=$(jq -n --arg m "$m" --arg s "$status" --argjson i "$issues_json" \
+        '{module: $m, status: $s, issues: $i}')
+      results_json=$(echo "$results_json" | jq --argjson i "$item" '. += [$i]')
+    fi
+  done
+
+  if [ "$as_json" -eq 1 ]; then
+    jq -n --arg ts "$ts" \
+      --argjson ok "$ok_count" --argjson warn "$warn_count" --argjson fail "$fail_count" \
+      --argjson r "$results_json" \
+      '{generated_at: $ts, ok: $ok, warn: $warn, fail: $fail, results: $r}'
+  else
+    echo ""
+    printf "  Ergebnis:  ${GREEN}%d ok${NC}  |  ${YELLOW}%d warn${NC}  |  ${RED}%d fail${NC}\n" \
+      "$ok_count" "$warn_count" "$fail_count"
+    echo ""
+  fi
+
+  [ "$fail_count" -gt 0 ] && return 1
+  return 0
+}
+
+cmd_help() {
+  cat << 'EOF'
+
+════════════════════════════════════════════════════════════════════
+  brainhome-devctl — Unified Development Control for All Modules
+════════════════════════════════════════════════════════════════════
+
+USAGE:
+  brainhome-devctl [<module>] <command> [options]
+
+MODULES:
+  webserver             Full-stack backend + frontend (LXC 112)
+  brainhome-platform    Platform monorepo (Docker)
+  pxe-boot              Network boot infrastructure (LXC 130)
+  HomeAssistant         Home automation (SSH)
+
+COMMANDS (module-specific):
+  status [--deps]       Show module status; optional dependency insights
+  logs [service] [n]    Show logs: service name optional, n=lines (50 default)
+  start [service] [--with-deps]  Start service/module, optionally with recursive dependency startup
+  stop [service] [--with-deps]   Stop service/module, optionally stopping dependencies in reverse order
+  restart [service] [--with-deps]  Restart service/module, optionally starting dependencies afterwards
+
+COMMANDS (global):
+  list                  List all modules
+  health [module|all] [--json] [--quiet] [--timeout=N]  Ping-check all module hosts
+  ssh <module> [-- cmd] Open SSH/exec shell in the module's container or host
+  exec <module> <cmd>   Run a single command in the module's container
+  ports [module|all] [--json] [--timeout=N]  Check port reachability from inventory
+  diff [module|all] [--staged]  Show git diff for one or all modules
+  validate [module|all] [--verbose] [--json]  Validate .brainhome.yml schema + registry
+  diagnose [module] [--json] [--logs] [--log-lines=N]  AI-ready bundle: health+ports+validate+context
+  env [module] [--show-secrets] [--json]  Show .env files (secrets masked by default)
+  cycle-check [opts]    Shortcut for dependency cycle checks across all modules (default JSON strict summary)
+  dep-order <module>|--all [--json] [--strict] [--summary] [--quiet] [--silent] [--output=lines|csv|count] [--fail-count] [--fail-modules] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none]  Show dependency start/stop order
+                        cycle-check accepts: [--ci[=count|csv|lines]] [--no-cycles] [--text|--json] [--strict] [--output=lines|csv|count] [--format=<tpl>] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none]
+  discover              Force module rediscovery
+  collect-logs [m] [n]  Aggregate logs for one module or all
+  dashboard [opts]      Health dashboard (supports --refresh-logs)
+  tasks [m|all] [opts]  Generate VS Code tasks.json files
+  taskcheck [m|all] [--fix] Validate tasks.json health
+  smoketest [m|all] [opts] Run safe command smoke tests
+  smokefix [m|all] [opts] Suggest/apply strict smoke remediations
+  context [m] [--json] [--full]  Infrastructure context snapshot (modules+topology+IPs+cron)
+  ask [module] [scenario] [--with-context]  Structured debug template (rate-limit-safe)
+  help                  Show this help
+
+CONTAINER TYPES:
+  lxc                   LXC containers (pct exec)
+  docker                Docker Compose (docker-compose exec/up)
+  ssh                   Remote SSH hosts
+  local                 Local shell commands
+
+EXAMPLES:
+  # Show status
+  brainhome-devctl webserver status
+  brainhome-devctl webserver status --deps
+  brainhome-devctl health
+  brainhome-devctl health webserver
+  brainhome-devctl health all --json
+  brainhome-devctl ports
+  brainhome-devctl ports webserver --json
+  brainhome-devctl ssh webserver
+  brainhome-devctl ssh pihole -- systemctl status pihole-FTL
+  brainhome-devctl exec pihole 'pihole -q example.com'
+  brainhome-devctl diff webserver
+  brainhome-devctl diff all --staged
+  brainhome-devctl validate
+  brainhome-devctl validate webserver --verbose
+  brainhome-devctl validate all --json
+  brainhome-devctl diagnose
+  brainhome-devctl diagnose webserver
+  brainhome-devctl diagnose webserver --json
+  brainhome-devctl diagnose webserver --logs --log-lines=50
+  brainhome-devctl env webserver
+  brainhome-devctl env pihole --show-secrets
+  brainhome-devctl env webserver --json
+  brainhome-devctl watch webserver
+  brainhome-devctl watch webserver --service=caddy
+  brainhome-devctl watch all
+  brainhome-devctl watch all --lines=20
+  brainhome-devctl watch all --timeout=60
+  brainhome-devctl snapshot
+  brainhome-devctl snapshot --save
+  brainhome-devctl snapshot --save --label=before-deploy
+  brainhome-devctl snapshot webserver --save
+  brainhome-devctl snapshot --diff
+  brainhome-devctl snapshot --diff snap_a.json snap_b.json
+  brainhome-devctl dep-order webserver
+  brainhome-devctl dep-order webserver --json
+  brainhome-devctl dep-order --all
+  brainhome-devctl dep-order --all --json
+  brainhome-devctl dep-order --all --json --strict
+  brainhome-devctl dep-order --all --json --strict --summary
+  brainhome-devctl cycle-check
+  brainhome-devctl cycle-check --text
+  brainhome-devctl cycle-check --text --quiet
+  brainhome-devctl cycle-check --text --quiet --silent
+  brainhome-devctl cycle-check --output=count
+  brainhome-devctl cycle-check --output=csv
+  brainhome-devctl cycle-check --output=lines
+  brainhome-devctl cycle-check --output=csv --sort
+  brainhome-devctl cycle-check --output=csv --sort=desc
+  brainhome-devctl cycle-check --output=csv --sep=';'
+  brainhome-devctl cycle-check --strict --output=count
+  brainhome-devctl cycle-check --strict --output=csv --sort
+  brainhome-devctl cycle-check --ci
+  brainhome-devctl cycle-check --ci=csv
+  brainhome-devctl cycle-check --ci=lines
+  brainhome-devctl cycle-check --no-cycles
+  brainhome-devctl cycle-check --ci=lines --format='::error title=Dependency Cycle::{m}'
+  brainhome-devctl cycle-check --output=lines --format='CYCLE: {m}'
+  brainhome-devctl cycle-check --json --strict --summary
+
+  # View logs
+  brainhome-devctl webserver logs                    (last 50 lines)
+  brainhome-devctl brainhome-platform logs backend   (service-specific)
+
+  # Control services
+  brainhome-devctl webserver start backend
+  brainhome-devctl webserver start --with-deps
+  brainhome-devctl brainhome-platform start          (docker-compose)
+  brainhome-devctl webserver stop backend
+  brainhome-devctl webserver stop --with-deps
+  brainhome-devctl pxe-boot restart dnsmasq
+  brainhome-devctl webserver restart --with-deps
+
+  # Phase 5 dashboard + aggregation
+  brainhome-devctl collect-logs all 150
+  brainhome-devctl collect-logs webserver 200
+  brainhome-devctl dashboard
+  brainhome-devctl dashboard --refresh-logs --lines 150
+
+  # VS Code tasks generator
+  brainhome-devctl tasks all
+  brainhome-devctl tasks webserver --write
+  brainhome-devctl tasks webserver --write --merge
+  brainhome-devctl tasks all --write --force
+
+  # Validate generated tasks
+  brainhome-devctl taskcheck all
+  brainhome-devctl taskcheck all --fix
+  brainhome-devctl taskcheck webserver --json
+
+  # Safe smoke tests
+  brainhome-devctl smoketest all
+  brainhome-devctl smoketest all --strict
+  brainhome-devctl smoketest webserver --skip-logs
+
+  # Strict smoke remediation
+  brainhome-devctl smokefix all
+  brainhome-devctl smokefix all --auto-remote
+  brainhome-devctl smokefix all --apply
+  brainhome-devctl smokefix all --apply --remote-host proxmox-dev
+
+  # Infrastruktur-Kontext (für AI + Debugging)
+  brainhome-devctl context                      (Alle Module, Topology, Cron)
+  brainhome-devctl context webserver            (Fokus: webserver + Deps + Cron)
+  brainhome-devctl context pihole               (Fokus: pihole + Guests + Cron)
+  brainhome-devctl context --full               (+ alle Proxmox-Guests)
+  brainhome-devctl context --json               (maschinenlesbares JSON)
+  brainhome-devctl context webserver --json     (Modul-fokus als JSON)
+
+  # Debug-Template (rate-limit-sicher, strukturiert)
+  brainhome-devctl ask                          (generisches Template)
+  brainhome-devctl ask webserver                (mit Modul-Kontext)
+  brainhome-devctl ask webserver backend        (+ Szenario: backend)
+  brainhome-devctl ask webserver --with-context (Template + Infra-Context inline)
+  brainhome-devctl ask --module pihole dns      (Modul + Szenario: dns)
+  brainhome-devctl ask --scenario proxmox       (Proxmox-spezifisch)
+  brainhome-devctl ask --scenario storage       (Storage/NAS-spezifisch)
+  brainhome-devctl ask --scenario ha            (Home Assistant)
+  brainhome-devctl ask --scenario network       (Netzwerk/OpenWrt)
+
+  # Auto-detect module from current directory
+  cd /home/webserver && devctl status
+  cd /home/webserver && devctl logs
+  cd /home/webserver && devctl ask
+  cd /home/webserver && devctl context
+
+For module-specific commands not listed here, use:
+  /home/webserver/tools/devctl.sh <command>
+  /home/brainhome-platform/tools/devctl.sh <command>
+
+EOF
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+main() {
+  if [ $# -eq 0 ]; then
+    cmd_list
+    return 0
+  fi
+
+  # Check for global commands first
+  case "$1" in
+    list|cycle-check|dep-order|discover|collect-logs|dashboard|tasks|taskcheck|smoketest|smokefix|context|ask|health|ssh|exec|ports|diff|validate|diagnose|env|watch|snapshot|help)
+      case "$1" in
+        list)    cmd_list ;;
+        cycle-check)
+          shift
+          cmd_cycle_check "$@"
+          ;;
+        dep-order)
+          shift
+          cmd_dep_order "$@"
+          ;;
+        discover)
+          log_info "Running module discovery..."
+          python3 "$TOOLS_ROOT/lib/module-discovery.py" discover --no-cache >/dev/null 2>&1
+          log_success "Discovery complete"
+          "$TOOLS_ROOT/bin/brainhome-status"
+          ;;
+        collect-logs)
+          shift
+          cmd_collect_logs "$@"
+          ;;
+        dashboard)
+          shift
+          cmd_dashboard "$@"
+          ;;
+        tasks)
+          shift
+          cmd_tasks "$@"
+          ;;
+        taskcheck)
+          shift
+          cmd_taskcheck "$@"
+          ;;
+        smoketest)
+          shift
+          cmd_smoketest "$@"
+          ;;
+        smokefix)
+          shift
+          cmd_smokefix "$@"
+          ;;
+        context)
+          shift
+          cmd_context "$@"
+          ;;
+        ask)
+          shift
+          cmd_ask "$@"
+          ;;
+        health)
+          shift
+          cmd_health "$@"
+          ;;
+        ssh)
+          shift
+          cmd_ssh "$@"
+          ;;
+        exec)
+          shift
+          cmd_exec "$@"
+          ;;
+        ports)
+          shift
+          cmd_ports "$@"
+          ;;
+        diff)
+          shift
+          cmd_diff "$@"
+          ;;
+        validate)
+          shift
+          cmd_validate "$@"
+          ;;
+        diagnose)
+          shift
+          cmd_diagnose "$@"
+          ;;
+        env)
+          shift
+          cmd_env "$@"
+          ;;
+        watch)
+          shift
+          cmd_watch "$@"
+          ;;
+        snapshot)
+          shift
+          cmd_snapshot "$@"
+          ;;
+        help)    cmd_help ;;
+      esac
+      return 0
+      ;;
+  esac
+
+  # Check if first arg is a known module
+  local module=""
+  local cmd=""
+
+  if [ -f "$MODULES_JSON" ] && jq -e ".modules.\"$1\"" "$MODULES_JSON" >/dev/null 2>&1; then
+    # First arg is module name
+    module="$1"
+    cmd="${2:-status}"
+    shift 2
+  else
+    # Try auto-detect or treat as command
+    module=$(detect_module 2>/dev/null || true)
+    if [ -z "$module" ]; then
+      # No module, treat as command (if valid)
+      case "$1" in
+        status|logs|start|stop|restart)
+          log_error "Command '$1' requires a module"
+          log_error "Usage: brainhome-devctl <module> $1"
+          return 1
+          ;;
+        *)
+          log_error "Module not specified and not auto-detected"
+          log_error "Usage: brainhome-devctl <module> <command>"
+          return 1
+          ;;
+      esac
+    else
+      cmd="$1"
+      shift
+    fi
+  fi
+
+  # Execute command
+  case "$cmd" in
+    status)
+      cmd_status "$module" "$@"
+      ;;
+    logs)
+      cmd_logs "$module" "$@"
+      ;;
+    start)
+      cmd_start "$module" "$@"
+      ;;
+    stop)
+      cmd_stop "$module" "$@"
+      ;;
+    restart)
+      cmd_restart "$module" "$@"
+      ;;
+    *)
+      # Delegate to module-local tools/devctl.sh if present (two-tier tooling)
+      local module_path_local
+      module_path_local=$(get_module_path "$module" 2>/dev/null || true)
+      local local_devctl="$module_path_local/tools/devctl.sh"
+      if [ -n "$module_path_local" ] && [ -f "$local_devctl" ]; then
+        exec bash "$local_devctl" "$cmd" "$@"
+      fi
+      log_error "Unknown command for module '$module': $cmd"
+      log_error "Available commands: status, logs, start, stop, restart"
+      log_error "Tip: module-local commands require tools/devctl.sh in the module root"
+      return 1
+      ;;
+  esac
+}
+
+main "$@"

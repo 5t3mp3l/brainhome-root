@@ -1,0 +1,418 @@
+#!/bin/bash
+# =============================================================================
+# brainhome — Main entry point for BrainHome Tools
+#
+# Detects context (which module) and routes to appropriate tool.
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+
+# Show help if no args
+if [ $# -eq 0 ]; then
+  cat << 'EOF'
+
+════════════════════════════════════════════════════════════════════
+  BrainHome Development Toolkit
+════════════════════════════════════════════════════════════════════
+
+Quick Start:
+  brainhome status          Global status dashboard
+  brainhome context         Infrastructure snapshot (Module+IPs+Nodes+Cron)
+  brainhome ask             Debug-Template (rate-limit-sicher)
+  brainhome health          Ping-check all module hosts
+  brainhome ports           Check port reachability from inventory
+  brainhome ssh <module>    Open SSH shell in module container
+  brainhome exec <m> <cmd>  Run command in module container
+  brainhome diff [module]   Git diff for one or all modules
+  brainhome validate        Validate all .brainhome.yml files
+  brainhome diagnose [m]    AI-ready bundle: health+ports+validate+context
+  brainhome env [module]    Show .env files (secrets masked)
+  brainhome watch [module]  Live log stream (single module or all, colour-labelled)
+  brainhome snapshot        Freeze state to JSON; compare with --diff
+  brainhome git <cmd>       Unified git guardrails for agents
+  brainhome dashboard       Health dashboard (with log freshness)
+  brainhome collect-logs    Aggregate logs across modules
+  brainhome tasks           Generate VS Code tasks per module
+  brainhome taskcheck       Validate module tasks.json health
+  brainhome smoketest       Run safe module command smoke tests
+  brainhome smokefix        Suggest/apply strict smoketest remediations
+  brainhome cycle-check     Run dependency cycle check across all modules
+  brainhome dep-order       Show dependency start/stop order for a module
+  brainhome inventory       Central infrastructure inventory (VM/CT/IP/Ports)
+  brainhome path-preflight  Find path coupling before a workspace migration
+  brainhome node-mirrors    Check or refresh Proxmox node module copies
+  brainhome new-module      Scaffold .brainhome.yml in a module repo
+  brainhome inventory <cmd> Central VM/CT/Node inventory
+  brainhome docu <cmd>      Entwickler-Wissen knowledge base tools
+  brainhome list            List all modules
+  brainhome devctl <module> <cmd>   Control a module
+  brainhome tickets <cmd>   Manage tickets
+  brainhome docu <cmd>      Entwickler-Wissen suchen, zeigen, pflegen
+  brainhome git <cmd>       Git guardrails (preflight/work-start/pr-ready)
+
+Examples:
+  brainhome status
+  brainhome git preflight --repo /home/webserver
+  brainhome git work-start D182A7 --repo /home/webserver --type feat --slug "git guardrails"
+  brainhome git pr-ready --repo /home/webserver --base main
+  brainhome git batch-add --repo /home/tools --branch feat/97E830-git-guardrails --commit fc4d557 --pr-link https://github.com/5t3mp3l/Tools/pull/new/feat/97E830-git-guardrails --base main
+  brainhome git batch-run --json
+  brainhome dashboard --refresh-logs
+  brainhome collect-logs all 150
+  brainhome tasks all
+  brainhome tasks webserver --write
+  brainhome tasks webserver --write --merge
+  brainhome taskcheck all
+  brainhome smoketest all
+  brainhome smoketest all --strict
+  brainhome smokefix all
+  brainhome smokefix all --auto-remote
+  brainhome new-module --path /home/my-module --module-type backend --category development --container-type docker --template backend --discover
+  brainhome dep-order webserver
+  brainhome dep-order webserver --json
+  brainhome dep-order --all
+  brainhome dep-order --all --json
+  brainhome dep-order --all --json --strict
+  brainhome dep-order --all --json --strict --summary
+  brainhome cycle-check
+  brainhome cycle-check --text
+  brainhome cycle-check --text --quiet
+  brainhome cycle-check --text --quiet --silent
+  brainhome cycle-check --output=count
+  brainhome cycle-check --output=csv
+  brainhome cycle-check --output=lines
+  brainhome cycle-check --output=csv --sort
+  brainhome cycle-check --output=csv --sort=desc
+  brainhome cycle-check --output=csv --sep=';'
+  brainhome cycle-check --strict --output=count
+  brainhome cycle-check --strict --output=csv --sort
+  brainhome cycle-check --ci
+  brainhome cycle-check --ci=csv
+  brainhome cycle-check --ci=lines
+  brainhome cycle-check --ci=lines --format="::error title=Dependency Cycle::{m}"
+  brainhome cycle-check --output=lines --format="CYCLE: {m}"
+  brainhome cycle-check --no-cycles
+  brainhome cycle-check --json --strict --summary
+  brainhome devctl webserver status --deps
+  brainhome inventory refresh
+  brainhome path-preflight
+  brainhome path-preflight --strict
+  brainhome inventory show --section guests
+  brainhome inventory preflight --refresh
+  brainhome inventory monitor-run --strict
+  brainhome inventory install-cron --interval 15 --strict
+  brainhome inventory install-cron-export --hour 2 --minute 10
+  brainhome docu list
+  brainhome docu search proxmox
+  brainhome list
+  brainhome context
+  brainhome context webserver
+  brainhome context --json
+  brainhome context --full
+  brainhome ask webserver --with-context
+  brainhome devctl webserver status
+  brainhome devctl webserver start --with-deps
+  brainhome devctl webserver stop --with-deps
+  brainhome devctl webserver restart --with-deps
+  brainhome tickets status
+  brainhome docu list
+  brainhome docu show pihole
+  brainhome docu search "proxmox migration"
+  brainhome docu add-lesson-ticket <id> <modul> "<titel>" "<erkenntnisse>"
+  brainhome discover       Force rediscovery
+
+Full documentation: brainhome docu help
+
+EOF
+  exit 0
+fi
+
+# Route subcommands
+case "$1" in
+  status)
+    exec "$TOOLS_ROOT/bin/brainhome-status"
+    ;;
+
+  dashboard)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" dashboard "$@"
+    ;;
+
+  collect-logs)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" collect-logs "$@"
+    ;;
+
+  tasks)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-tasks" "$@"
+    ;;
+
+  taskcheck)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-taskcheck" "$@"
+    ;;
+
+  smoketest)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-smoketest" "$@"
+    ;;
+
+  smokefix)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-smokefix" "$@"
+    ;;
+
+  cycle-check)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" cycle-check "$@"
+    ;;
+
+  dep-order)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" dep-order "$@"
+    ;;
+
+  inventory)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-inventory" "$@"
+    ;;
+
+  path-preflight)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-path-preflight" "$@"
+    ;;
+
+  node-mirrors)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-proxmox-node-mirrors" "$@"
+    ;;
+
+  docu)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-docu" "$@"
+    ;;
+  new-module)
+    shift
+    exec bash "$TOOLS_ROOT/bin/brainhome-new-module" "$@"
+    ;;
+
+  list)
+    exec "$TOOLS_ROOT/bin/brainhome-discover" list
+    ;;
+
+  discover)
+    exec "$TOOLS_ROOT/bin/brainhome-discover" discover --no-cache
+    ;;
+
+  devctl)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" "$@"
+    ;;
+
+  ask)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" ask "$@"
+    ;;
+
+  context)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" context "$@"
+    ;;
+
+  health)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" health "$@"
+    ;;
+
+  ssh)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" ssh "$@"
+    ;;
+
+  exec)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" exec "$@"
+    ;;
+
+  ports)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" ports "$@"
+    ;;
+
+  diff)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" diff "$@"
+    ;;
+
+  validate)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" validate "$@"
+    ;;
+
+  diagnose)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" diagnose "$@"
+    ;;
+
+  env)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" env "$@"
+    ;;
+
+  watch)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" watch "$@"
+    ;;
+
+  snapshot)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-devctl" snapshot "$@"
+    ;;
+
+  tickets)
+    shift
+    exec "$TOOLS_ROOT/bin/brainhome-tickets" "$@"
+    ;;
+
+  cron)
+    shift
+    exec python3 "$TOOLS_ROOT/bin/brainhome-cron" "$@"
+    ;;
+
+  git)
+    shift
+    exec bash "$TOOLS_ROOT/bin/brainhome-git" "$@"
+    ;;
+
+  help)
+    cat << 'EOF'
+
+════════════════════════════════════════════════════════════════════
+  BrainHome Tools — Help
+════════════════════════════════════════════════════════════════════
+
+MAIN COMMANDS:
+  brainhome status              Show status of all modules
+  brainhome health [m|all]      Ping-check all module hosts/containers
+  brainhome ports [m|all]       Check port reachability from inventory
+  brainhome ssh <module>        Open SSH/exec shell in module container
+  brainhome exec <m> <cmd>      Run a command in module container
+  brainhome diff [m|all]        Git diff for one or all modules
+  brainhome validate [m|all]    Validate .brainhome.yml schema + registry
+  brainhome dashboard [opts]    Health dashboard with log freshness
+  brainhome collect-logs [m] [n] Aggregate logs for one/all modules
+  brainhome tasks [m|all] [--write] [--merge] [--force] Generate VS Code tasks
+  brainhome taskcheck [m|all] [--json] [--fix] Validate tasks health
+  brainhome smoketest [m|all] [opts] Run safe command smoke tests
+  brainhome smokefix [m|all] [--apply] [--remote-host HOST] [--auto-remote] [opts] Remediate strict smoke failures
+  brainhome cycle-check [--ci[=count|csv|lines]] [--no-cycles] [--text|--json] [--strict] [--summary] [--quiet] [--silent] [--output=lines|csv|count] [--format=<tpl>] [--fail-count] [--fail-modules] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none] Run cycle check across all modules
+  brainhome dep-order <module>|--all [--json] [--strict] [--summary] [--quiet] [--silent] [--output=lines|csv|count] [--fail-count] [--fail-modules] [--sep=<char>] [--sort|--sort=asc|--sort=desc|--sort=none] Show dependency order for start/stop with deps
+  brainhome inventory refresh|show|export-md|preflight|monitor-run|install-cron|install-cron-export  Central VM/CT/Node inventory
+  brainhome docu list|show|search|add-lesson|add-lesson-ticket  Entwickler-Wissen knowledge base
+  brainhome new-module --path <module_path> [--name <module_name>] [--module-type TYPE] [--category CAT] [--container-type TYPE] [--template auto|full-stack|backend|container|script|base] [--force] [--discover]
+  brainhome list                List available modules
+  brainhome discover            Rediscover modules
+  brainhome devctl <module> <cmd>   Control specific module
+  brainhome cron list|check|deploy|remove|show  Cron-Job Registry verwalten
+  brainhome tickets <cmd>       Manage project tickets
+  brainhome git <cmd>           Unified git guardrails
+  brainhome ask [module] [scenario]  Debug-Template ausgeben (rate-limit-sicher)
+  brainhome watch [module|all] [--service=<svc>] [--lines=N]  Stream live logs (Ctrl-C)
+  brainhome snapshot [--save] [--label=x] [--diff]            State freeze/compare
+  brainhome docu list           Show all modules with Entwickler-Wissen
+  brainhome docu show <m>       Show knowledge for a module
+  brainhome docu search <kw>    Search knowledge across all modules
+  brainhome docu add-lesson-ticket <id> <m> "<title>" "<text>"  Add lesson after ticket
+
+EXAMPLES:
+
+  # View all modules
+  brainhome status
+  brainhome list
+
+  # Control a module
+  brainhome devctl webserver status
+  brainhome git preflight --repo /home/webserver
+  brainhome git work-start D182A7 --repo /home/webserver --type feat --slug "git guardrails"
+  brainhome git pr-ready --repo /home/webserver --base main
+  brainhome devctl webserver status --deps
+  brainhome dep-order webserver
+  brainhome dep-order webserver --json
+  brainhome dep-order --all
+  brainhome dep-order --all --json
+  brainhome dep-order --all --json --strict
+  brainhome dep-order --all --json --strict --summary
+  brainhome cycle-check
+  brainhome cycle-check --text
+  brainhome cycle-check --text --quiet
+  brainhome cycle-check --text --quiet --silent
+  brainhome cycle-check --output=count
+  brainhome cycle-check --output=csv
+  brainhome cycle-check --output=lines
+  brainhome cycle-check --output=csv --sort
+  brainhome cycle-check --output=csv --sort=desc
+  brainhome cycle-check --output=csv --sep=';'
+  brainhome cycle-check --strict --output=count
+  brainhome cycle-check --strict --output=csv --sort
+  brainhome cycle-check --ci
+  brainhome cycle-check --ci=csv
+  brainhome cycle-check --ci=lines
+  brainhome cycle-check --ci=lines --format="::error title=Dependency Cycle::{m}"
+  brainhome cycle-check --output=lines --format="CYCLE: {m}"
+  brainhome cycle-check --no-cycles
+  brainhome cycle-check --json --strict --summary
+  brainhome inventory refresh
+  brainhome inventory show --section all
+  brainhome inventory export-md
+  brainhome inventory preflight --refresh
+  brainhome inventory monitor-run --strict
+  brainhome inventory install-cron --interval 15 --strict
+  brainhome inventory install-cron-export --hour 2 --minute 10
+  brainhome docu list
+  brainhome docu show webserver
+  brainhome docu search proxmox
+  brainhome devctl webserver start --with-deps
+  brainhome devctl webserver stop --with-deps
+  brainhome devctl webserver restart --with-deps
+  brainhome devctl brainhome-platform logs
+
+  # Ticket management
+  brainhome tickets list
+  brainhome tickets add "My task"
+  brainhome tickets claim <id>
+  brainhome tickets done <id> "Done message"
+
+  # Git guardrails
+  brainhome git preflight --repo /home/webserver
+  brainhome git work-start D182A7 --repo /home/webserver --type feat --slug "git guardrails"
+  brainhome git pr-ready --repo /home/webserver --base main
+  brainhome git batch-add --repo /home/tools --branch feat/97E830-git-guardrails --commit fc4d557 --pr-link https://github.com/5t3mp3l/Tools/pull/new/feat/97E830-git-guardrails --base main
+  brainhome git batch-list
+  brainhome git batch-run --json
+
+SHORTCUTS (if in a module directory):
+  devctl status             (auto-detects module)
+
+PATHS:
+  Tools:      resolved from this command's location
+  Docs:       brainhome docu help
+  Registry:   generated by brainhome discover
+  State:      managed by brainhome collect-logs
+
+For detailed help on specific commands:
+  brainhome devctl help
+  brainhome tickets help
+
+EOF
+    ;;
+
+  *)
+    echo "Unknown command: $1"
+    echo "Run: brainhome help"
+    exit 1
+    ;;
+esac

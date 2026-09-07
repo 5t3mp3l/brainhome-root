@@ -1,0 +1,19 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-tasks — Generate VS Code tasks.json for BrainHome modules
+#
+# Usage:
+#   brainhome-tasks [module|all] [--write] [--merge] [--force]
+#
+# Examples:
+#   brainhome-tasks all
+#   brainhome-tasks webserver --write
+#   brainhome-tasks webserver --write --merge
+#   brainhome-tasks all --write --force
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+exec python3 "$TOOLS_ROOT/lib/task-generator.py" "$@"

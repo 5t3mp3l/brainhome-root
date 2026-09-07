@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "caddy"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ug"
+container_id = 110
+address = "192.168.188.202"
+service_type = "caddy"

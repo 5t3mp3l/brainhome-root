@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "grafana"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ug"
+vm_id = 219
+address = "192.168.188.108"
+service_type = "grafana"

@@ -1,0 +1,45 @@
+# BrainHome path manifest schema v1.
+# Repository locations are relative so the workspace can be moved safely.
+
+schema = 1
+
+[workspace]
+name = "brainhome-root"
+root_discovery = "script-directory"
+
+[layout]
+tools = "tools"
+modules = "."
+
+[modules]
+architektur = "architektur"
+appstore_system = "appstore-system"
+autarkie = "autarkie"
+brainhome_platform = "brainhome-platform"
+"AI-on-the-edge" = "AI-on-the-edge"
+caddy = "proxmox-ug/ct/caddy/source"
+grafana = "proxmox-ug/vms/grafana/source"
+HomeAssistant = "proxmox-ws/vms/ha-master/source"
+keycloak = "proxmox-dt/vms/idp-keycloak/source"
+nextcloud = "proxmox-dt/vms/nextcloud/source"
+openwrt = "openwrt"
+"openwrt-repeater-setup" = "proxmox-ug/vms/openwrt-ug/source"
+pihole = "proxmox-ug/ct/pihole/source"
+proxmox_dt = "proxmox-dt"
+proxmox_eg = "proxmox-eg"
+proxmox_og = "proxmox-og"
+proxmox_ug = "proxmox-ug"
+proxmox_ws = "proxmox-ws"
+"pxe-boot" = "proxmox-ug/ct/pxe-stack/source"
+workstation = "proxmox-ws/vms/brainhome-workstation/source"
+
+[external_modules.webserver]
+relative_path = "../webserver"
+classification = "independent-checkout"
+requires_separate_migration = true
+
+[migration]
+# Production deployment and runtime paths are intentionally not workspace paths.
+# They are declared by module manifests and remain stable during a repo move.
+preserve_deployment_paths = true
+preserve_runtime_paths = true

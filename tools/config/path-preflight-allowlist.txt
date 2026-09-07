@@ -1,0 +1,4 @@
+# Source files whose relative workspace references are verified and intentional.
+# One repository-relative file path per line.
+AI-on-the-edge/gasmeter/gasmeter.code-workspace
+AI-on-the-edge/strommeter/strommeter.code-workspace

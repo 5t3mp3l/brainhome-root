@@ -1,0 +1,13 @@
+schema = 1
+
+[module]
+name = "ha-master"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ws"
+vm_id = 101
+address = "192.168.188.142"
+live_name = "haos"
+service_type = "home-assistant"

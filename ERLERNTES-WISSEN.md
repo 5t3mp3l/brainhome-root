@@ -227,19 +227,19 @@ Da `remote_homeassistant` kein Reconfigure unterstützt:
 
 ## 9) Referenz auf begleitende Doku
 
-- Root-Infra Übersicht: `/home/INFRASTRUCTURE.md`
-- Master-Aufgaben: `/home/TODO.md`
+- Root-Infra Übersicht: `${BRAINHOME_ROOT}/INFRASTRUCTURE.md`
+- Master-Aufgaben: `${BRAINHOME_ROOT}/TODO.md`
 - Modulwissen:
-  - `/home/pihole/ENTWICKLER-WISSEN.md`
-  - `/home/caddy/ENTWICKLER-WISSEN.md`
-  - `/home/HomeAssistant/**/ENTWICKLER-WISSEN.md`
-  - `/home/nextcloud/ENTWICKLER-WISSEN.md`
+  - `${BRAINHOME_ROOT}/pihole/ENTWICKLER-WISSEN.md`
+  - `${BRAINHOME_ROOT}/caddy/ENTWICKLER-WISSEN.md`
+  - `${BRAINHOME_ROOT}/HomeAssistant/**/ENTWICKLER-WISSEN.md`
+  - `${BRAINHOME_ROOT}/nextcloud/ENTWICKLER-WISSEN.md`
 - Tooling:
-  - `/home/webserver/tools/migration-preflight.sh`
-  - `/home/webserver/tools/agent-state.sh`
-  - `/home/webserver/tools/devctl.sh` (Cross-Node Dev-Steuerung, dynamisch via pvesh)
-  - `/home/workstation/tools/cluster-inventory.sh` (Cluster-Inventar via pvesh)
-  - `/home/workstation/docs/ssh-config.md` (SSH-Config Snapshot mit Annotationen)
+  - `${BRAINHOME_ROOT}/../webserver/tools/migration-preflight.sh`
+  - `${BRAINHOME_ROOT}/../webserver/tools/agent-state.sh`
+  - `${BRAINHOME_ROOT}/../webserver/tools/devctl.sh` (Cross-Node Dev-Steuerung, dynamisch via pvesh)
+  - `${BRAINHOME_ROOT}/workstation/tools/cluster-inventory.sh` (Cluster-Inventar via pvesh)
+  - `${BRAINHOME_ROOT}/workstation/docs/ssh-config.md` (SSH-Config Snapshot mit Annotationen)
 
 ---
 
@@ -339,7 +339,7 @@ Da `remote_homeassistant` kein Reconfigure unterstützt:
   ```
 
 ### 12.2 Docker Compose: Bind-Mount-Pfade immer parametrisieren
-- **Problem**: Hardcoded `/home/nextcloud/data/` passt auf Management-Host, aber nicht auf VM (`/home/brain/nextcloud/data/`).
+- **Problem**: Hardcoded `${BRAINHOME_ROOT}/nextcloud/data/` passt auf den Workspace, aber nicht auf die VM (`/home/brain/nextcloud/data/`).
 - Container startet ohne Fehler, Nextcloud kann aber nicht schreiben → schwer debugbar.
 - **Lösung**: Alle hostbezogenen Pfade als `${VAR:-default}` in Compose parametrisieren.
 - `.env.example` muss alle solchen Variablen dokumentiert und mit Standardwert enthalten.
@@ -608,7 +608,7 @@ proxmox-ug$ devctl.sh status
 
 ### 14.7 cluster-inventory.sh: zentrales Cluster-Inventar-Tool
 
-Neu erstellt in `/home/workstation/tools/cluster-inventory.sh`. Überblick aller VMs/CTs im Cluster mit Node, Status und Tags:
+Neu erstellt in `${BRAINHOME_ROOT}/workstation/tools/cluster-inventory.sh`. Überblick aller VMs/CTs im Cluster mit Node, Status und Tags:
 
 ```bash
 bash cluster-inventory.sh              # Tabelle aller 23 VMs/CTs
@@ -822,7 +822,7 @@ Voraussetzung: `--web.enable-lifecycle` muss im Prometheus-Start gesetzt sein (i
 
 ### ha-eg Prometheus Bug (behoben April 2026)
 IP in `prometheus.yml` war `.148` statt `.194` → `home_assistant_eg` war `down`.
-Fix: `targets: ['192.168.188.194:8123']` in `/home/brain/brainhome-root/grafana/config/prometheus.yml`
+Fix: `targets: ['192.168.188.194:8123']` in `${BRAINHOME_ROOT}/grafana/config/prometheus.yml`
 
 ---
 
@@ -890,7 +890,7 @@ Stand 27.03.2026:
 ssh proxmox-eg "pct list"   # Lock: backup = suspend läuft gerade
 
 # Hilfsskript im Workspace nutzen
-bash /home/brain/brainhome-root/tools/bin/proxmox-backup-check.sh 117 proxmox-eg
+bash ${BRAINHOME_ROOT}/tools/bin/proxmox-backup-check.sh 117 proxmox-eg
 
 # VIP-Inhaber prüfen
 ssh proxmox-og "pct exec 120 -- ip addr show eth0 | grep '188\.200'"

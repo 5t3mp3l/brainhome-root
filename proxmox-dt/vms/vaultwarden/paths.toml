@@ -1,0 +1,30 @@
+# Path manifest schema v1 for Vaultwarden on VM 104.
+
+schema = 1
+
+[service]
+name = "vaultwarden"
+vm_id = 104
+host_node = "proxmox-dt"
+address = "192.168.188.123"
+
+[placement]
+node = "proxmox-dt"
+vm_id = 104
+address = "192.168.188.123"
+service_type = "vaultwarden"
+
+[repository]
+root = "."
+compose = "docker-compose.yml"
+deploy_script = "scripts/deploy-vaultwarden.sh"
+
+[runtime]
+root = "/opt/vaultwarden"
+environment = "/opt/vaultwarden/.env"
+data = "/opt/vaultwarden/data"
+compose = "/opt/vaultwarden/docker-compose.yml"
+
+[network]
+public_url = "https://vault.brain"
+local_port = 8080

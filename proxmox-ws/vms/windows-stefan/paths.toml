@@ -1,0 +1,10 @@
+schema = 1
+
+[module]
+name = "windows-stefan"
+repository_root = "."
+
+[placement]
+node = "proxmox-ws"
+vm_id = 220
+service_type = "windows"

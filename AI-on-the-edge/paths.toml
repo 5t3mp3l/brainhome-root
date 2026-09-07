@@ -1,0 +1,20 @@
+# Path manifest schema v1 for the AI-on-the-edge parent module.
+
+schema = 1
+
+[module]
+name = "AI-on-the-edge"
+repository_root = "."
+
+[repository]
+config = "config"
+scripts = "scripts"
+docs = "docs"
+data = "data"
+logs = "logs"
+docker = "docker"
+gasmeter = "gasmeter"
+strommeter = "strommeter"
+
+[relationships]
+strommeter_workspace_peer = "gasmeter"

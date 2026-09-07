@@ -1,0 +1,13 @@
+schema = 1
+
+[module]
+name = "brainhome-workstation"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ws"
+vm_id = 113
+address = "192.168.188.193"
+live_name = "ubuntu-pc"
+service_type = "workstation"

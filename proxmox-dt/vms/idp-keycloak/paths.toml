@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "idp-keycloak"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-dt"
+vm_id = 107
+address = "192.168.188.107"
+service_type = "keycloak"

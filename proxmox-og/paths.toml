@@ -1,0 +1,21 @@
+# Path manifest schema v1 for the proxmox-og node workspace.
+
+schema = 1
+
+[module]
+name = "proxmox-og"
+repository_root = "."
+
+[proxmox]
+node = "proxmox-og"
+management_ip = "192.168.188.252"
+
+[layout]
+config = "config"
+data = "data"
+docs = "docs"
+logs = "logs"
+scripts = "scripts"
+tools = "tools"
+vms = "vms"
+containers = "ct"

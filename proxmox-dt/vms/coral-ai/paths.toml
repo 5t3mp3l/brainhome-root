@@ -1,0 +1,10 @@
+schema = 1
+
+[module]
+name = "coral-ai"
+repository_root = "."
+
+[placement]
+node = "proxmox-dt"
+vm_id = 180
+service_type = "coral-ai"

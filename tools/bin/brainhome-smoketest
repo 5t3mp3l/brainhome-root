@@ -1,0 +1,13 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-smoketest — Safe module command smoke test
+#
+# Usage:
+#   brainhome-smoketest [module|all] [--timeout SEC] [--lines N] [--skip-logs] [--strict] [--json]
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+exec python3 "$TOOLS_ROOT/lib/task-smoketest.py" "$@"

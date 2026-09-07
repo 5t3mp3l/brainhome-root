@@ -1,0 +1,197 @@
+#!/bin/bash
+# Report path references that must be reviewed before moving the workspace root.
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${_SCRIPT_DIR}/../lib/paths.sh"
+ALLOWLIST_FILE="$(bh_path tools/config/path-preflight-allowlist.txt)"
+
+strict=false
+include_docs=false
+summary_only=false
+all_modules=false
+scan_root="$BRAINHOME_ROOT"
+
+usage() {
+    cat <<'EOF'
+Usage: brainhome-path-preflight [--strict] [--include-docs] [--summary] [--all-modules] [--root PATH]
+
+Reports path coupling before a workspace migration. It never changes files.
+--strict exits non-zero when migration candidates are found.
+--include-docs also scans Markdown documentation for migration follow-up work.
+--summary prints only candidate counts per classification.
+--all-modules audits the root, all manifest modules, and declared external checkouts.
+--root PATH scans an alternate workspace root.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --strict) strict=true ;;
+        --include-docs) include_docs=true ;;
+        --summary) summary_only=true ;;
+        --all-modules) all_modules=true ;;
+        --root)
+            shift
+            scan_root="${1:?--root requires a path}"
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+scan_root="$(cd "$scan_root" && pwd)"
+[[ -f "$scan_root/paths.toml" ]] || {
+    echo "Missing paths.toml: $scan_root" >&2
+    exit 2
+}
+
+if [[ "$all_modules" == true ]]; then
+    targets=()
+    while IFS= read -r target; do
+        [[ -n "$target" ]] && targets+=("$target")
+    done < <(python3 - "$scan_root" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+with (root / "paths.toml").open("rb") as stream:
+    manifest = tomllib.load(stream)
+
+print(root)
+for relative_path in manifest.get("modules", {}).values():
+    print((root / relative_path).resolve())
+for external in manifest.get("external_modules", {}).values():
+    print((root / external["relative_path"]).resolve())
+PY
+)
+
+    overall_pass=true
+    total_candidates=0
+    printf 'BrainHome path preflight matrix\n'
+    for target in "${targets[@]}"; do
+        child_args=(--summary --root "$target")
+        [[ "$strict" == true ]] && child_args+=(--strict)
+        [[ "$include_docs" == true ]] && child_args+=(--include-docs)
+        result="$("${_SCRIPT_DIR}/brainhome-path-preflight" "${child_args[@]}" 2>/dev/null || true)"
+        candidates="$(printf '%s\n' "$result" | awk '/Migration candidates:/ {print $3}')"
+        printf '%-48s candidates=%s\n' "$target" "${candidates:-unknown}"
+        total_candidates=$((total_candidates + ${candidates:-0}))
+        if [[ "$target" == "$scan_root" ]]; then
+            [[ "$candidates" == "0" || "$candidates" == "1" ]] || overall_pass=false
+        else
+            [[ "$candidates" == "0" ]] || overall_pass=false
+        fi
+    done
+    if [[ "$overall_pass" == true && ( "$strict" == false || "$total_candidates" -eq 0 ) ]]; then
+        printf 'PASS: migration matrix is clean; only the intentional root external boundary remains.\n'
+        exit 0
+    fi
+    printf 'FAIL: migration matrix contains unexpected candidates.\n' >&2
+    exit 1
+fi
+ignored_files=(
+    "$scan_root/tools/config/modules.json"
+    "$scan_root/tools/config/infrastructure-inventory.json"
+    "$scan_root/paths.local.example.toml"
+)
+
+exclude_args=(
+    --exclude-dir=.git
+    --exclude-dir=.venv
+    --exclude-dir=node_modules
+    --exclude-dir=data
+    --exclude-dir=logs
+    --exclude-dir=backups
+    --exclude-dir=build
+    --exclude-dir=dist
+    --exclude='*.log'
+    --exclude='*.pyc'
+    --exclude='paths.toml'
+    --exclude='paths.local.example.toml'
+    --exclude='modules.json'
+    --exclude='infrastructure-inventory.json'
+)
+file_args=(
+    --include='*.sh'
+    --include='*.py'
+    --include='*.service'
+    --include='*.timer'
+    --include='*.path'
+    --include='*.yml'
+    --include='*.yaml'
+    --include='*.json'
+    --include='*.toml'
+    --include='*.conf'
+    --include='*.ini'
+    --include='*.code-workspace'
+)
+if [[ "$include_docs" == true ]]; then
+    file_args+=(--include='*.md')
+else
+    exclude_args+=(--exclude='*.md')
+fi
+
+candidate_count=0
+declare -A candidate_counts=()
+report_matches() {
+    local title="$1"
+    local pattern="$2"
+    local matches allowed_path ignored_path
+    matches="$(grep -RInE "${exclude_args[@]}" "${file_args[@]}" "$pattern" "$scan_root" 2>/dev/null || true)"
+    if [[ -f "$ALLOWLIST_FILE" ]]; then
+        while IFS= read -r allowed_path; do
+            [[ -z "$allowed_path" || "$allowed_path" == \#* ]] && continue
+            allowed_file="${BRAINHOME_ROOT}/${allowed_path}"
+            matches="$(printf '%s\n' "$matches" | grep -Fv "${allowed_file}:" || true)"
+        done <"$ALLOWLIST_FILE"
+    fi
+    for ignored_path in "${ignored_files[@]}"; do
+        matches="$(printf '%s\n' "$matches" | grep -Fv "${ignored_path}:" || true)"
+    done
+    matches="$(printf '%s\n' "$matches" | grep -Fv '/paths.toml:' || true)"
+    if [[ "$title" == "LEGACY_WORKSPACE_OR_REMOTE" ]]; then
+        matches="$(printf '%s\n' "$matches" | grep -Fv "${scan_root}/BrainHome.code-workspace:" || true)"
+    fi
+    [[ -n "$matches" ]] || return 0
+    local count
+    count="$(printf '%s\n' "$matches" | wc -l)"
+    candidate_count=$((candidate_count + count))
+    candidate_counts["$title"]="$count"
+    if [[ "$summary_only" == false ]]; then
+        printf '\n[%s]\n%s\n' "$title" "$matches"
+    fi
+}
+
+echo "BrainHome path preflight"
+echo "Workspace root: $scan_root"
+echo "Mode: read-only"
+echo "Documentation scan: $include_docs"
+[[ -f "$ALLOWLIST_FILE" ]] && echo "Allowlist: $ALLOWLIST_FILE"
+
+report_matches "ROOT_BOUND" "${scan_root//\//\\/}"
+report_matches "LEGACY_WORKSPACE_OR_REMOTE" "/home/(caddy|grafana|keycloak|pihole|nextcloud|workstation|HomeAssistant)(/|\\\")"
+report_matches "WORKSPACE_ESCAPE" '"path"[[:space:]]*:[[:space:]]*"\.\./'
+
+printf '\nClassification summary:\n'
+for classification in ROOT_BOUND LEGACY_WORKSPACE_OR_REMOTE WORKSPACE_ESCAPE; do
+    printf '  %-28s %d\n' "$classification" "${candidate_counts[$classification]:-0}"
+done
+printf '\nMigration candidates: %d\n' "$candidate_count"
+if [[ "$candidate_count" -eq 0 ]]; then
+    echo "PASS: no workspace migration candidates found."
+elif [[ "$strict" == true ]]; then
+    echo "FAIL: resolve or classify every candidate before moving the workspace root." >&2
+    exit 1
+else
+    echo "WARN: classify each candidate as workspace, deployment, or runtime before moving paths."
+fi

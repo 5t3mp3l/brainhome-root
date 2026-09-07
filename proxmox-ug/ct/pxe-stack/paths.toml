@@ -1,0 +1,12 @@
+schema = 1
+
+[module]
+name = "pxe-stack"
+repository_root = "."
+source_module = "source"
+
+[placement]
+node = "proxmox-ug"
+container_id = 130
+address = "192.168.188.250"
+service_type = "pxe"

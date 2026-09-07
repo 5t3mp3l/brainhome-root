@@ -1,0 +1,17 @@
+#!/bin/bash
+# =============================================================================
+# brainhome-smokefix — Remediate strict smoke test failures
+#
+# Usage:
+#   brainhome-smokefix [module|all] [--timeout SEC] [--lines N] [--apply]
+#                      [--remote-host HOST] [--remote-path PATH]
+#                      [--remote-bootstrap] [--repo-url URL] [--repo-branch BRANCH]
+#                      [--repo-ssh-key PATH]
+#                      [--auto-remote] [--candidates CSV] [--json]
+# =============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_ROOT="${TOOLS_ROOT:-$(dirname "$_SCRIPT_DIR")}"
+exec python3 "$TOOLS_ROOT/lib/task-smoke-remediate.py" "$@"

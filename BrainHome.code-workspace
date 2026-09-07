@@ -134,7 +134,7 @@
 
     // Terminal
     "terminal.integrated.defaultProfile.linux": "bash",
-      "terminal.integrated.cwd": "/home/brain/webserver",
+      "terminal.integrated.cwd": "${workspaceFolder:🏠 BrainHome Root}",
     "terminal.integrated.scrollback": 10000,
 
     // File Watcher Exclusions (performance: keine schweren Verzeichnisse beobachten)
@@ -324,7 +324,7 @@
       {
         "label": "⬇️ Pull ALL HA Configs",
         "type": "shell",
-        "command": "K=/home/haos-configs/.ssh/vscode_rsa; declare -A HOSTS=([MASTER]=192.168.188.142 [EG]=192.168.188.148 [OG]=192.168.188.143 [UG]=192.168.188.152); declare -A DIRS=([MASTER]=/home/HomeAssistant/haos [EG]=/home/HomeAssistant/haos-eg [OG]=/home/HomeAssistant/haos-og [UG]=/home/HomeAssistant/haos-ug); for N in MASTER EG OG UG; do echo \"⬇️  $N...\"; rsync -az --delete -e \"ssh -i $K -o StrictHostKeyChecking=no\" --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@${HOSTS[$N]}:/config/ ${DIRS[$N]}/ && echo \"✅ $N OK\" || echo \"❌ $N FEHLER\"; done; echo '🎉 Fertig!'",
+        "command": "K='${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa'; declare -A HOSTS=([MASTER]=192.168.188.142 [EG]=192.168.188.194 [OG]=192.168.188.143 [UG]=192.168.188.152); declare -A DIRS=([MASTER]='${workspaceFolder:🏠 HomeAssistant}/haos' [EG]='${workspaceFolder:🏠 HomeAssistant}/haos-eg' [OG]='${workspaceFolder:🏠 HomeAssistant}/haos-og' [UG]='${workspaceFolder:🏠 HomeAssistant}/haos-ug'); for N in MASTER EG OG UG; do echo \"⬇️  $N...\"; rsync -az --delete -e \"ssh -i $K -o StrictHostKeyChecking=no\" --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@${HOSTS[$N]}:/config/ ${DIRS[$N]}/ && echo \"✅ $N OK\" || echo \"❌ $N FEHLER\"; done; echo '🎉 Fertig!'",
         "group": { "kind": "build", "isDefault": true },
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []
@@ -332,7 +332,7 @@
       {
         "label": "⬇️ Pull MASTER",
         "type": "shell",
-        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.142:/config/ /home/HomeAssistant/haos/ && echo '✅ MASTER pulled'",
+        "command": "rsync -az --delete -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.142:/config/ ${workspaceFolder:🏠 HomeAssistant}/haos/ && echo '✅ MASTER pulled'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
         "problemMatcher": []
@@ -340,7 +340,7 @@
       {
         "label": "⬇️ Pull EG",
         "type": "shell",
-        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.148:/config/ /home/HomeAssistant/haos-eg/ && echo '✅ EG pulled'",
+        "command": "rsync -az --delete -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.194:/config/ ${workspaceFolder:🏠 HomeAssistant}/haos-eg/ && echo '✅ EG pulled'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
         "problemMatcher": []
@@ -348,7 +348,7 @@
       {
         "label": "⬇️ Pull OG",
         "type": "shell",
-        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.143:/config/ /home/HomeAssistant/haos-og/ && echo '✅ OG pulled'",
+        "command": "rsync -az --delete -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.143:/config/ ${workspaceFolder:🏠 HomeAssistant}/haos-og/ && echo '✅ OG pulled'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
         "problemMatcher": []
@@ -356,7 +356,7 @@
       {
         "label": "⬇️ Pull UG",
         "type": "shell",
-        "command": "rsync -az --delete -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.152:/config/ /home/HomeAssistant/haos-ug/ && echo '✅ UG pulled'",
+        "command": "rsync -az --delete -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' --exclude='home-assistant.log*' root@192.168.188.152:/config/ ${workspaceFolder:🏠 HomeAssistant}/haos-ug/ && echo '✅ UG pulled'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
         "problemMatcher": []
@@ -364,7 +364,7 @@
       {
         "label": "⬆️ Push MASTER → HA",
         "type": "shell",
-        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos/ root@192.168.188.142:/config/ && ssh ha-master 'ha core check && ha core restart' && echo '✅ MASTER deployed'",
+        "command": "rsync -az -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' ${workspaceFolder:🏠 HomeAssistant}/haos/ root@192.168.188.142:/config/ && ssh ha-master 'ha core check && ha core restart' && echo '✅ MASTER deployed'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []
@@ -372,7 +372,7 @@
       {
         "label": "⬆️ Push EG → HA",
         "type": "shell",
-        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-eg/ root@192.168.188.148:/config/ && ssh ha-eg 'ha core restart' && echo '✅ EG deployed'",
+        "command": "rsync -az -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' ${workspaceFolder:🏠 HomeAssistant}/haos-eg/ root@192.168.188.194:/config/ && ssh ha-eg 'ha core restart' && echo '✅ EG deployed'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []
@@ -380,7 +380,7 @@
       {
         "label": "⬆️ Push OG → HA",
         "type": "shell",
-        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-og/ root@192.168.188.143:/config/ && ssh ha-og 'ha core restart' && echo '✅ OG deployed'",
+        "command": "rsync -az -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' ${workspaceFolder:🏠 HomeAssistant}/haos-og/ root@192.168.188.143:/config/ && ssh ha-og 'ha core restart' && echo '✅ OG deployed'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []
@@ -388,7 +388,7 @@
       {
         "label": "⬆️ Push UG → HA",
         "type": "shell",
-        "command": "rsync -az -e 'ssh -i /home/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' /home/HomeAssistant/haos-ug/ root@192.168.188.152:/config/ && ssh ha-ug 'ha core restart' && echo '✅ UG deployed'",
+        "command": "rsync -az -e 'ssh -i ${workspaceFolder:🏠 BrainHome Root}/haos-configs/.ssh/vscode_rsa -o StrictHostKeyChecking=no' --exclude='.cloud' --exclude='deps/' --exclude='tts/' --exclude='*.db' --exclude='*.db-*' ${workspaceFolder:🏠 HomeAssistant}/haos-ug/ root@192.168.188.152:/config/ && ssh ha-ug 'ha core restart' && echo '✅ UG deployed'",
         "group": "build",
         "presentation": { "echo": true, "reveal": "always", "focus": true, "panel": "shared" },
         "problemMatcher": []

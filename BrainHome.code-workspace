@@ -10,39 +10,39 @@
     },
     {
       "name": "🟢 HA Master",
-      "path": "./HomeAssistant/haos"
+      "path": "./proxmox-ws/vms/ha-master/source/haos"
     },
     {
       "name": "🟡 HA EG",
-      "path": "./HomeAssistant/haos-eg"
+      "path": "./proxmox-eg/vms/haos-eg/source"
     },
     {
       "name": "🔵 HA OG",
-      "path": "./HomeAssistant/haos-og"
+      "path": "./proxmox-og/vms/haos-og/source"
     },
     {
       "name": "🟠 HA UG",
-      "path": "./HomeAssistant/haos-ug"
+      "path": "./proxmox-ug/vms/haos-ug/source"
     },
     {
       "name": "🟣 HA GA",
-      "path": "./HomeAssistant/haos-ga"
+      "path": "./proxmox-ug/vms/haos-ga/source"
     },
     {
       "name": "🏠 HomeAssistant",
-      "path": "./HomeAssistant"
+      "path": "./proxmox-ws/vms/ha-master/source"
     },
     {
       "name": "🌐 Caddy",
-      "path": "./caddy"
+      "path": "./proxmox-ug/ct/caddy/source"
     },
     {
       "name": "🔒 Pi-hole",
-      "path": "./pihole"
+      "path": "./proxmox-ug/ct/pihole/source"
     },
     {
       "name": "🔑 Keycloak",
-      "path": "./keycloak"
+      "path": "./proxmox-dt/vms/idp-keycloak/source"
     },
     {
       "name": "📷 AI on the Edge",
@@ -58,11 +58,11 @@
     },
     {
       "name": "🌐 OpenWrt",
-      "path": "./openwrt-repeater-setup"
+      "path": "./proxmox-ug/vms/openwrt-ug/source"
     },
     {
       "name": "🛠️ PXE Boot",
-      "path": "./pxe-boot"
+      "path": "./proxmox-ug/ct/pxe-stack/source"
     },
     {
       "name": "📡 Fritzbox",
@@ -74,7 +74,7 @@
     },
     {
       "name": "📊 Grafana",
-      "path": "./grafana"
+      "path": "./proxmox-ug/vms/grafana/source"
     },
     {
       "name": "⚙️ BrainHome Platform",
@@ -82,7 +82,7 @@
     },
     {
       "name": "☁️ Nextcloud",
-      "path": "./nextcloud"
+      "path": "./proxmox-dt/vms/nextcloud/source"
     },
     {
       "name": "🌐 OpenWrt (Router)",
@@ -94,7 +94,7 @@
     },
     {
       "name": "💻 Workstation",
-      "path": "./workstation"
+      "path": "./proxmox-ws/vms/brainhome-workstation/source"
     },
     {
       "name": "🌐 Webserver",
@@ -262,7 +262,7 @@
         "approve": true,
         "matchCommandLine": true
       },
-      "/^bash /home/brain/webserver/tools/language-consistency-audit\.sh(.*)?$/": {
+      "/^bash /home/brain/webserver/tools/language-consistency-audit\\.sh(.*)?$/": {
         "approve": true,
         "matchCommandLine": true
       },
@@ -270,7 +270,7 @@
         "approve": true,
         "matchCommandLine": true
       },
-      "/^cd /home/brain/webserver && .*\.sh.*$/": {
+      "/^cd /home/brain/webserver && .*\\.sh.*$/": {
         "approve": true,
         "matchCommandLine": true
       },

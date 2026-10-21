@@ -13,7 +13,7 @@ Keine Job-Auswahl, Retention, NFS-Rechte oder Paketstaende geaendert.
 |---|---|---|
 | proxmox-eg | `tmpdir: /var/tmp/brainhome-vzdump` aktiv | `/etc/vzdump.conf.before-local-tmp.4JC3GksX` |
 | proxmox-og | `tmpdir: /var/tmp/brainhome-vzdump` aktiv | `/etc/vzdump.conf.before-local-tmp.VdPhoLsI` |
-| proxmox-ug | Zurueckgestellt: Backup-Task weiterhin aktiv | Keine Aenderung |
+| proxmox-ug | Nach separat freigegebenem Task-Stopp ebenfalls aktiv | `/etc/vzdump.conf.before-local-tmp.QhAJyGfz` |
 
 EG und OG: lokales ext4, jeweils mehr als 70 GiB frei vor Einrichtung.
 Temp-Elternverzeichnis `root:root`, Modus `0711`: gemappte Benutzer
@@ -64,10 +64,46 @@ Backup getestet, um die Freigabe fuer genau einen Testgast einzuhalten.
 
 ## Offen
 
-1. Aktiven UG-Lauf separat untersuchen; nicht ungeprueft abbrechen. UG-tmpdir
-   erst nach dessen Ende, erneuter Kapazitaetspruefung und ohne konkurrierenden
-   Task konfigurieren.
+1. UG ist nach Untersuchung und freigegebenem regulaerem Task-Stopp eingerichtet;
+   Ergebnisse der naechsten regulaeren Sicherung pruefen. Kein neuer UG-Test gestartet.
 2. Ergebnisse der naechsten regulaeren EG-/OG-Sicherungen pruefen.
 3. Isolierten Restore ohne Produktions-IP/VIP und ohne angeschlossenes
    Produktionsnetz gesondert planen und freigeben lassen.
 4. Nextcloud-NAS-I/O-Fehler und fehlende Backup-Abdeckung bleiben eigene Aufgaben.
+
+## Nachtrag: UG-Lauf untersucht und regulaer gestoppt
+
+Um 11:20 Ortszeit lief der UG-Job seit ueber zehn Stunden. Beim Backup von
+CT116 wartete ein rsync-Empfaenger zeitweise im Zustand `D` auf NFS-RPCs.
+Der Kernelstack zeigte `nfs3_proc_setattr`, `nfs3_proc_create` und
+`rpc_wait_bit_killable`; gleichzeitig erschienen weiterhin neue
+`chown ... Operation not permitted`-Fehler im NFS-Tempverzeichnis. Damit war
+der Lauf fehlerhaft und von langsamen/blockierenden NFS-Metadatenzugriffen
+betroffen, nicht nachweislich vollstaendig ohne Fortschritt eingefroren.
+Die genaue NAS-seitige Ursache wurde nicht untersucht.
+
+Nach ausdruecklicher Freigabe wurde ausschliesslich dieser Task ueber den
+regulaeren Proxmox-Endpunkt gestoppt:
+
+```text
+UPID:proxmox-ug:001F27F9:01C26FC3:6AD7F278:vzdump::root@pam:
+```
+
+Ergebnis: `status=stopped`, `exitstatus=unexpected status`. Der Prozessbaum
+war beendet; die kurzzeitig veraltete Aktivliste war bei erneuter Pruefung
+leer. CT116 blieb running, die Backup-Sperre wurde automatisch entfernt,
+`systemctl --failed` meldete keine fehlgeschlagenen Units. Das ist keine
+vollstaendige Pruefung des Webserver-Endpunkts und kein erfolgreicher Backup-Abschluss.
+Kein `kill -9`, kein Neustart und kein manuelles `pct unlock` eingesetzt.
+
+Anschliessend lokales tmpdir auf UG eingerichtet und direkt verifiziert:
+ext4, `root:root 0711`, rund 45,8 GiB frei vor Einrichtung. CT116 hatte rund
+3,1 GiB belegten Rootspeicher. Das ist fuer diesen Gast ausreichend Reserve,
+aber keine Kapazitaetsgarantie fuer beliebige parallele oder kuenftige Sicherungen.
+Keine alten Archive, fehlgeschlagenen Tempdateien oder Retention-Einstellungen
+geaendert und kein weiteres Backup gestartet.
+
+Zusaetzlicher Befund: CT116 bindet `/home/webserver` als Host-Bind-Mount ein.
+Dieser Inhalt ist im untersuchten Backup explizit ausgeschlossen und braucht
+einen getrennten Sicherungs-/Restore-Nachweis; das Rootvolume allein deckt ihn
+nicht ab.

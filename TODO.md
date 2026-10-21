@@ -5,6 +5,19 @@
 
 ---
 
+## Cluster-Audit 21.10.2026
+
+- [x] Fuenf Online-Nodes, Quorum und alle 25 Gast-Platzierungen live mit Pfadmanifesten abgeglichen.
+- [x] [Physische Architektur](architektur/PHYSISCHE-ARCHITEKTUR.md), Asset-Verzeichnis und lesenden Drift-Pruefer erstellt.
+- [ ] Backup-Abdeckung fuer VM104/105 und HAOS 101/102/103/106/115 klaeren; 180/220 bewusst ein- oder ausschliessen.
+- [ ] Restore-Test und separate/offsite Kopie planen; NAS-Backup-Ziel ist etwa 89 % belegt.
+- [ ] WS-Swap-Nutzung und DT-RAM ueber Zeit messen, danach Kapazitaetsmassnahmen planen.
+- [ ] DT-PVE-Stand 9.1.1 gegen 9.2.10 der anderen Nodes im Wartungsfenster angleichen.
+- [ ] HA-/Replikations- und Storage-Failover pro kritischem Gast testen; nur VM102 hat einen konfigurierten Replikationsjob.
+- [ ] Physische Standorte, USV/Stromkreise, Switch-Ports und DT-Datentraeger vor Ort ergaenzen.
+- [ ] VLAN/IPAM-Zielplan vereinheitlichen und dokumentierte Zugangsdaten kontrolliert rotieren.
+- [ ] SSH-Live-Transport in bestehenden Inventory-Manager integrieren; lokaler Export hat mangels pvesh leere Node-/Gastlisten.
+
 ## Workspace Modularisierung (DDB696)
 
 - [x] Pro Modul eigene VS Code Umgebung ausgerollt: `.code-workspace` + `.vscode/settings.json` + `.vscode/extensions.json`

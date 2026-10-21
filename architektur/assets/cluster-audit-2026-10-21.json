@@ -1,0 +1,1358 @@
+{
+  "schema": 1,
+  "declared": {
+    "nodes": [
+      {
+        "asset_id": "compute_dt",
+        "node_module": "proxmox_dt",
+        "cpu": "AMD Ryzen 5 3600",
+        "hardware_evidence": "Proxmox node status API; DMI and ZFS SSH access unavailable",
+        "location": "unknown",
+        "power_domain": "unknown",
+        "switch_port": "unknown",
+        "node": "proxmox-dt",
+        "management_ip": "192.168.188.133",
+        "workspace_root": "."
+      },
+      {
+        "asset_id": "compute_eg",
+        "node_module": "proxmox_eg",
+        "vendor": "LENOVO",
+        "dmi_product": "10RRS1F802",
+        "cpu": "Intel Core i7-9700",
+        "location": "unknown",
+        "power_domain": "unknown",
+        "switch_port": "unknown",
+        "node": "proxmox-eg",
+        "management_ip": "192.168.188.253"
+      },
+      {
+        "asset_id": "compute_og",
+        "node_module": "proxmox_og",
+        "vendor": "LENOVO",
+        "dmi_product": "10RS0033MX",
+        "cpu": "Intel Core i7-9700",
+        "location": "unknown",
+        "power_domain": "unknown",
+        "switch_port": "unknown",
+        "node": "proxmox-og",
+        "management_ip": "192.168.188.252"
+      },
+      {
+        "asset_id": "compute_ug",
+        "node_module": "proxmox_ug",
+        "vendor": "Gigabyte Technology Co., Ltd.",
+        "dmi_product": "GA-990FXA-UD3",
+        "cpu": "AMD FX-8350",
+        "location": "unknown",
+        "power_domain": "unknown",
+        "switch_port": "unknown",
+        "node": "proxmox-ug",
+        "management_ip": "192.168.188.248"
+      },
+      {
+        "asset_id": "compute_ws",
+        "node_module": "proxmox_ws",
+        "vendor": "Micro-Star International Co., Ltd.",
+        "dmi_product": "MS-7C37",
+        "cpu": "AMD Ryzen 7 3800X",
+        "location": "unknown",
+        "power_domain": "unknown",
+        "switch_port": "unknown",
+        "node": "proxmox-ws",
+        "management_ip": "192.168.188.247"
+      }
+    ],
+    "guests": [
+      {
+        "vmid": 100,
+        "type": "lxc",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "container_id": 100,
+        "address": "192.168.188.251",
+        "service_type": "pihole",
+        "manifest": "proxmox-ug/ct/pihole/paths.toml",
+        "source": "proxmox-ug/ct/pihole/source"
+      },
+      {
+        "vmid": 101,
+        "type": "qemu",
+        "asset_id": "compute_ws",
+        "node": "proxmox-ws",
+        "vm_id": 101,
+        "address": "192.168.188.142",
+        "live_name": "haos",
+        "service_type": "home-assistant",
+        "manifest": "proxmox-ws/vms/ha-master/paths.toml",
+        "source": "proxmox-ws/vms/ha-master/source"
+      },
+      {
+        "vmid": 102,
+        "type": "qemu",
+        "asset_id": "compute_eg",
+        "node": "proxmox-eg",
+        "vm_id": 102,
+        "address": "192.168.188.194",
+        "service_type": "home-assistant",
+        "manifest": "proxmox-eg/vms/haos-eg/paths.toml",
+        "source": "proxmox-eg/vms/haos-eg/source"
+      },
+      {
+        "vmid": 103,
+        "type": "qemu",
+        "asset_id": "compute_og",
+        "node": "proxmox-og",
+        "vm_id": 103,
+        "address": "192.168.188.143",
+        "service_type": "home-assistant",
+        "manifest": "proxmox-og/vms/haos-og/paths.toml",
+        "source": "proxmox-og/vms/haos-og/source"
+      },
+      {
+        "vmid": 104,
+        "type": "qemu",
+        "asset_id": "compute_dt",
+        "node": "proxmox-dt",
+        "vm_id": 104,
+        "address": "192.168.188.123",
+        "service_type": "vaultwarden",
+        "manifest": "proxmox-dt/vms/vaultwarden/paths.toml",
+        "source": null
+      },
+      {
+        "vmid": 105,
+        "type": "qemu",
+        "asset_id": "compute_dt",
+        "node": "proxmox-dt",
+        "vm_id": 105,
+        "address": "192.168.188.124",
+        "service_type": "stalwart-mail",
+        "manifest": "proxmox-dt/vms/stalwart-mail/paths.toml",
+        "source": null
+      },
+      {
+        "vmid": 106,
+        "type": "qemu",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "vm_id": 106,
+        "address": "192.168.188.152",
+        "service_type": "home-assistant",
+        "manifest": "proxmox-ug/vms/haos-ug/paths.toml",
+        "source": "proxmox-ug/vms/haos-ug/source"
+      },
+      {
+        "vmid": 107,
+        "type": "qemu",
+        "asset_id": "compute_dt",
+        "node": "proxmox-dt",
+        "vm_id": 107,
+        "address": "192.168.188.107",
+        "service_type": "keycloak",
+        "manifest": "proxmox-dt/vms/idp-keycloak/paths.toml",
+        "source": "proxmox-dt/vms/idp-keycloak/source"
+      },
+      {
+        "vmid": 108,
+        "type": "qemu",
+        "asset_id": "compute_eg",
+        "node": "proxmox-eg",
+        "vm_id": 108,
+        "address": "192.168.188.149",
+        "service_type": "openwrt",
+        "manifest": "proxmox-eg/vms/openwrt-eg/paths.toml",
+        "source": "proxmox-eg/vms/openwrt-eg/../../../proxmox-ug/vms/openwrt-ug/source"
+      },
+      {
+        "vmid": 109,
+        "type": "qemu",
+        "asset_id": "compute_og",
+        "node": "proxmox-og",
+        "vm_id": 109,
+        "address": "192.168.188.144",
+        "service_type": "openwrt",
+        "manifest": "proxmox-og/vms/openwrt-og/paths.toml",
+        "source": "proxmox-og/vms/openwrt-og/../../../proxmox-ug/vms/openwrt-ug/source"
+      },
+      {
+        "vmid": 110,
+        "type": "lxc",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "container_id": 110,
+        "address": "192.168.188.202",
+        "service_type": "caddy",
+        "manifest": "proxmox-ug/ct/caddy/paths.toml",
+        "source": "proxmox-ug/ct/caddy/source"
+      },
+      {
+        "vmid": 111,
+        "type": "lxc",
+        "asset_id": "compute_og",
+        "node": "proxmox-og",
+        "container_id": 111,
+        "address": "192.168.188.249",
+        "service_type": "pihole",
+        "manifest": "proxmox-og/ct/pihole-og/paths.toml",
+        "source": "proxmox-og/ct/pihole-og/../../../proxmox-ug/ct/pihole/source"
+      },
+      {
+        "vmid": 112,
+        "type": "lxc",
+        "asset_id": "compute_ws",
+        "node": "proxmox-ws",
+        "container_id": 112,
+        "address": "192.168.188.112",
+        "live_name": "brainhome-dev",
+        "service_type": "webserver-development",
+        "manifest": "proxmox-ws/ct/brainhome-dev/paths.toml",
+        "source": "proxmox-ws/ct/brainhome-dev/../../../../webserver"
+      },
+      {
+        "vmid": 113,
+        "type": "qemu",
+        "asset_id": "compute_ws",
+        "node": "proxmox-ws",
+        "vm_id": 113,
+        "address": "192.168.188.193",
+        "live_name": "ubuntu-pc",
+        "service_type": "workstation",
+        "manifest": "proxmox-ws/vms/brainhome-workstation/paths.toml",
+        "source": "proxmox-ws/vms/brainhome-workstation/source"
+      },
+      {
+        "vmid": 114,
+        "type": "lxc",
+        "asset_id": "compute_eg",
+        "node": "proxmox-eg",
+        "container_id": 114,
+        "address": "192.168.188.245",
+        "service_type": "pihole",
+        "manifest": "proxmox-eg/ct/pihole-eg/paths.toml",
+        "source": "proxmox-eg/ct/pihole-eg/../../../proxmox-ug/ct/pihole/source"
+      },
+      {
+        "vmid": 115,
+        "type": "qemu",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "vm_id": 115,
+        "address": "192.168.188.191",
+        "service_type": "home-assistant",
+        "manifest": "proxmox-ug/vms/haos-ga/paths.toml",
+        "source": "proxmox-ug/vms/haos-ga/source"
+      },
+      {
+        "vmid": 116,
+        "type": "lxc",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "container_id": 116,
+        "address": "192.168.188.116",
+        "live_name": "brainhome-prod",
+        "service_type": "webserver-production",
+        "manifest": "proxmox-ug/ct/brainhome-prod/paths.toml",
+        "source": "proxmox-ug/ct/brainhome-prod/../../../../webserver"
+      },
+      {
+        "vmid": 117,
+        "type": "lxc",
+        "asset_id": "compute_eg",
+        "node": "proxmox-eg",
+        "container_id": 117,
+        "address": "192.168.188.203",
+        "service_type": "caddy",
+        "manifest": "proxmox-eg/ct/caddy-eg/paths.toml",
+        "source": "proxmox-eg/ct/caddy-eg/../../../proxmox-ug/ct/caddy/source"
+      },
+      {
+        "vmid": 119,
+        "type": "qemu",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "vm_id": 119,
+        "address": "192.168.188.150",
+        "service_type": "openwrt",
+        "manifest": "proxmox-ug/vms/openwrt-ug/paths.toml",
+        "source": "proxmox-ug/vms/openwrt-ug/source"
+      },
+      {
+        "vmid": 120,
+        "type": "lxc",
+        "asset_id": "compute_og",
+        "node": "proxmox-og",
+        "container_id": 120,
+        "address": "192.168.188.201",
+        "service_type": "caddy",
+        "manifest": "proxmox-og/ct/caddy-og/paths.toml",
+        "source": "proxmox-og/ct/caddy-og/../../../proxmox-ug/ct/caddy/source"
+      },
+      {
+        "vmid": 121,
+        "type": "qemu",
+        "asset_id": "compute_dt",
+        "node": "proxmox-dt",
+        "vm_id": 121,
+        "address": "192.168.188.121",
+        "live_name": "nextcloud-core",
+        "service_type": "nextcloud",
+        "manifest": "proxmox-dt/vms/nextcloud/paths.toml",
+        "source": "proxmox-dt/vms/nextcloud/source"
+      },
+      {
+        "vmid": 130,
+        "type": "lxc",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "container_id": 130,
+        "address": "192.168.188.250",
+        "service_type": "pxe",
+        "manifest": "proxmox-ug/ct/pxe-stack/paths.toml",
+        "source": "proxmox-ug/ct/pxe-stack/source"
+      },
+      {
+        "vmid": 180,
+        "type": "qemu",
+        "asset_id": "compute_dt",
+        "node": "proxmox-dt",
+        "vm_id": 180,
+        "service_type": "coral-ai",
+        "manifest": "proxmox-dt/vms/coral-ai/paths.toml",
+        "source": null
+      },
+      {
+        "vmid": 219,
+        "type": "qemu",
+        "asset_id": "compute_ug",
+        "node": "proxmox-ug",
+        "vm_id": 219,
+        "address": "192.168.188.108",
+        "service_type": "grafana",
+        "manifest": "proxmox-ug/vms/grafana/paths.toml",
+        "source": "proxmox-ug/vms/grafana/source"
+      },
+      {
+        "vmid": 220,
+        "type": "qemu",
+        "asset_id": "compute_ws",
+        "node": "proxmox-ws",
+        "vm_id": 220,
+        "service_type": "windows",
+        "manifest": "proxmox-ws/vms/windows-stefan/paths.toml",
+        "source": null
+      }
+    ]
+  },
+  "observed": {
+    "observed_at": "2026-10-21T08:31:09.967847+00:00",
+    "transport": "ssh:proxmox-ug; pvesh GET only",
+    "cluster": [
+      {
+        "id": "cluster",
+        "name": "brainhome",
+        "nodes": 5,
+        "quorate": 1,
+        "type": "cluster",
+        "version": 9
+      },
+      {
+        "id": "node/proxmox-ug",
+        "ip": "192.168.188.248",
+        "level": "",
+        "local": 1,
+        "name": "proxmox-ug",
+        "nodeid": 4,
+        "online": 1,
+        "type": "node"
+      },
+      {
+        "id": "node/proxmox-dt",
+        "ip": "192.168.188.133",
+        "level": "",
+        "local": 0,
+        "name": "proxmox-dt",
+        "nodeid": 6,
+        "online": 1,
+        "type": "node"
+      },
+      {
+        "id": "node/proxmox-eg",
+        "ip": "192.168.188.253",
+        "level": "",
+        "local": 0,
+        "name": "proxmox-eg",
+        "nodeid": 3,
+        "online": 1,
+        "type": "node"
+      },
+      {
+        "id": "node/proxmox-og",
+        "ip": "192.168.188.252",
+        "level": "",
+        "local": 0,
+        "name": "proxmox-og",
+        "nodeid": 2,
+        "online": 1,
+        "type": "node"
+      },
+      {
+        "id": "node/proxmox-ws",
+        "ip": "192.168.188.247",
+        "level": "",
+        "local": 0,
+        "name": "proxmox-ws",
+        "nodeid": 5,
+        "online": 1,
+        "type": "node"
+      }
+    ],
+    "nodes": {
+      "proxmox-ug": {
+        "ip": "192.168.188.248",
+        "online": 1,
+        "cpu": "AMD FX(tm)-8350 Eight-Core Processor",
+        "logical_cpus": 4,
+        "memory": {
+          "available": 6431211520,
+          "free": 484655104,
+          "total": 25107947520,
+          "used": 18676736000
+        },
+        "swap": {
+          "free": 8539713536,
+          "total": 8589930496,
+          "used": 50216960
+        },
+        "pveversion": "pve-manager/9.2.10/43df2e01f27a1a19"
+      },
+      "proxmox-dt": {
+        "ip": "192.168.188.133",
+        "online": 1,
+        "cpu": "AMD Ryzen 5 3600 6-Core Processor",
+        "logical_cpus": 12,
+        "memory": {
+          "available": 2977673216,
+          "free": 1462996992,
+          "total": 16687886336,
+          "used": 13710213120
+        },
+        "swap": {
+          "free": 8524210176,
+          "total": 8589930496,
+          "used": 65720320
+        },
+        "pveversion": "pve-manager/9.1.1/42db4a6cf33dac83"
+      },
+      "proxmox-eg": {
+        "ip": "192.168.188.253",
+        "online": 1,
+        "cpu": "Intel(R) Core(TM) i7-9700 CPU @ 3.00GHz",
+        "logical_cpus": 8,
+        "memory": {
+          "available": 23047303168,
+          "free": 6191554560,
+          "total": 33480622080,
+          "used": 10433318912
+        },
+        "swap": {
+          "free": 8584413184,
+          "total": 8589930496,
+          "used": 5517312
+        },
+        "pveversion": "pve-manager/9.2.10/43df2e01f27a1a19"
+      },
+      "proxmox-og": {
+        "ip": "192.168.188.252",
+        "online": 1,
+        "cpu": "Intel(R) Core(TM) i7-9700 CPU @ 3.00GHz",
+        "logical_cpus": 8,
+        "memory": {
+          "available": 23594086400,
+          "free": 11250536448,
+          "total": 33480675328,
+          "used": 9886588928
+        },
+        "swap": {
+          "free": 8589905920,
+          "total": 8589930496,
+          "used": 24576
+        },
+        "pveversion": "pve-manager/9.2.10/43df2e01f27a1a19"
+      },
+      "proxmox-ws": {
+        "ip": "192.168.188.247",
+        "online": 1,
+        "cpu": "AMD Ryzen 7 3800X 8-Core Processor",
+        "logical_cpus": 16,
+        "memory": {
+          "available": 4679380992,
+          "free": 305795072,
+          "total": 33568526336,
+          "used": 28889145344
+        },
+        "swap": {
+          "free": 4185628672,
+          "total": 8589930496,
+          "used": 4404301824
+        },
+        "pveversion": "pve-manager/9.2.10/43df2e01f27a1a19"
+      }
+    },
+    "resources": [
+      {
+        "id": "lxc/100",
+        "vmid": 100,
+        "type": "lxc",
+        "name": "pihole",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 536870912,
+        "mem": 166182912,
+        "maxcpu": 3,
+        "maxdisk": 10464022528,
+        "disk": 3943596032
+      },
+      {
+        "id": "qemu/101",
+        "vmid": 101,
+        "type": "qemu",
+        "name": "haos",
+        "node": "proxmox-ws",
+        "status": "running",
+        "maxmem": 11534336000,
+        "mem": 5813424128,
+        "maxcpu": 3,
+        "maxdisk": 34359738368,
+        "disk": 0
+      },
+      {
+        "id": "qemu/102",
+        "vmid": 102,
+        "type": "qemu",
+        "name": "haos-eg",
+        "node": "proxmox-eg",
+        "status": "running",
+        "maxmem": 11534336000,
+        "mem": 7137480704,
+        "maxcpu": 3,
+        "maxdisk": 34359738368,
+        "disk": 0,
+        "hastate": "started"
+      },
+      {
+        "id": "qemu/103",
+        "vmid": 103,
+        "type": "qemu",
+        "name": "haos-og",
+        "node": "proxmox-og",
+        "status": "running",
+        "maxmem": 11534336000,
+        "mem": 6610067456,
+        "maxcpu": 3,
+        "maxdisk": 34359738368,
+        "disk": 0,
+        "hastate": "started"
+      },
+      {
+        "id": "qemu/104",
+        "vmid": 104,
+        "type": "qemu",
+        "name": "vaultwarden",
+        "node": "proxmox-dt",
+        "status": "running",
+        "maxmem": 2147483648,
+        "mem": 882679808,
+        "maxcpu": 2,
+        "maxdisk": 34359738368,
+        "disk": 0
+      },
+      {
+        "id": "qemu/105",
+        "vmid": 105,
+        "type": "qemu",
+        "name": "stalwart-mail",
+        "node": "proxmox-dt",
+        "status": "running",
+        "maxmem": 2147483648,
+        "mem": 694083584,
+        "maxcpu": 2,
+        "maxdisk": 34359738368,
+        "disk": 0
+      },
+      {
+        "id": "qemu/106",
+        "vmid": 106,
+        "type": "qemu",
+        "name": "haos-ug",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 8589934592,
+        "mem": 7056760832,
+        "maxcpu": 2,
+        "maxdisk": 34359738368,
+        "disk": 0,
+        "hastate": "started"
+      },
+      {
+        "id": "qemu/107",
+        "vmid": 107,
+        "type": "qemu",
+        "name": "idp-keycloak",
+        "node": "proxmox-dt",
+        "status": "running",
+        "maxmem": 8589934592,
+        "mem": 2346164224,
+        "maxcpu": 3,
+        "maxdisk": 64424509440,
+        "disk": 0
+      },
+      {
+        "id": "qemu/108",
+        "vmid": 108,
+        "type": "qemu",
+        "name": "openwrt-eg",
+        "node": "proxmox-eg",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 83353600,
+        "maxcpu": 1,
+        "maxdisk": 130023424,
+        "disk": 0
+      },
+      {
+        "id": "qemu/109",
+        "vmid": 109,
+        "type": "qemu",
+        "name": "openwrt-og",
+        "node": "proxmox-og",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 84217856,
+        "maxcpu": 1,
+        "maxdisk": 130023424,
+        "disk": 0
+      },
+      {
+        "id": "lxc/110",
+        "vmid": 110,
+        "type": "lxc",
+        "name": "caddy",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 61501440,
+        "maxcpu": 1,
+        "maxdisk": 4143677440,
+        "disk": 1326256128
+      },
+      {
+        "id": "lxc/111",
+        "vmid": 111,
+        "type": "lxc",
+        "name": "pihole-og",
+        "node": "proxmox-og",
+        "status": "running",
+        "maxmem": 536870912,
+        "mem": 41091072,
+        "maxcpu": 1,
+        "maxdisk": 4143677440,
+        "disk": 1240862720
+      },
+      {
+        "id": "lxc/112",
+        "vmid": 112,
+        "type": "lxc",
+        "name": "brainhome-dev",
+        "node": "proxmox-ws",
+        "status": "stopped",
+        "maxmem": 12884901888,
+        "mem": 0,
+        "maxcpu": 4,
+        "maxdisk": 32212254720,
+        "disk": 0
+      },
+      {
+        "id": "qemu/113",
+        "vmid": 113,
+        "type": "qemu",
+        "name": "ubuntu-pc",
+        "node": "proxmox-ws",
+        "status": "running",
+        "maxmem": 24188551168,
+        "mem": 9234255872,
+        "maxcpu": 6,
+        "maxdisk": 107374182400,
+        "disk": 0
+      },
+      {
+        "id": "lxc/114",
+        "vmid": 114,
+        "type": "lxc",
+        "name": "pihole-eg",
+        "node": "proxmox-eg",
+        "status": "running",
+        "maxmem": 536870912,
+        "mem": 35053568,
+        "maxcpu": 2,
+        "maxdisk": 4143677440,
+        "disk": 1181872128
+      },
+      {
+        "id": "qemu/115",
+        "vmid": 115,
+        "type": "qemu",
+        "name": "haos-ga",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 4294967296,
+        "mem": 4035383296,
+        "maxcpu": 2,
+        "maxdisk": 34359738368,
+        "disk": 0
+      },
+      {
+        "id": "lxc/116",
+        "vmid": 116,
+        "type": "lxc",
+        "name": "brainhome-prod",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 4294967296,
+        "mem": 316772352,
+        "maxcpu": 2,
+        "maxdisk": 10464022528,
+        "disk": 3362545664
+      },
+      {
+        "id": "lxc/117",
+        "vmid": 117,
+        "type": "lxc",
+        "name": "caddy-eg",
+        "node": "proxmox-eg",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 41172992,
+        "maxcpu": 1,
+        "maxdisk": 4143677440,
+        "disk": 1176002560
+      },
+      {
+        "id": "qemu/119",
+        "vmid": 119,
+        "type": "qemu",
+        "name": "openwrt-ug",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 78622720,
+        "maxcpu": 1,
+        "maxdisk": 130023424,
+        "disk": 0
+      },
+      {
+        "id": "lxc/120",
+        "vmid": 120,
+        "type": "lxc",
+        "name": "caddy-og",
+        "node": "proxmox-og",
+        "status": "running",
+        "maxmem": 268435456,
+        "mem": 40734720,
+        "maxcpu": 1,
+        "maxdisk": 4143677440,
+        "disk": 1114705920
+      },
+      {
+        "id": "qemu/121",
+        "vmid": 121,
+        "type": "qemu",
+        "name": "nextcloud-core",
+        "node": "proxmox-dt",
+        "status": "running",
+        "maxmem": 4294967296,
+        "mem": 3643699200,
+        "maxcpu": 4,
+        "maxdisk": 106837311488,
+        "disk": 0
+      },
+      {
+        "id": "lxc/130",
+        "vmid": 130,
+        "type": "lxc",
+        "name": "pxe-stack",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 2147483648,
+        "mem": 55209984,
+        "maxcpu": 2,
+        "maxdisk": 8350298112,
+        "disk": 1589211136
+      },
+      {
+        "id": "qemu/180",
+        "vmid": 180,
+        "type": "qemu",
+        "name": "coral-ai",
+        "node": "proxmox-dt",
+        "status": "stopped",
+        "maxmem": 4294967296,
+        "mem": 0,
+        "maxcpu": 2,
+        "maxdisk": 21474836480,
+        "disk": 0
+      },
+      {
+        "id": "qemu/219",
+        "vmid": 219,
+        "type": "qemu",
+        "name": "grafana",
+        "node": "proxmox-ug",
+        "status": "running",
+        "maxmem": 4294967296,
+        "mem": 2545651712,
+        "maxcpu": 4,
+        "maxdisk": 43486543872,
+        "disk": 0
+      },
+      {
+        "id": "qemu/220",
+        "vmid": 220,
+        "type": "qemu",
+        "name": "windows-stefan",
+        "node": "proxmox-ws",
+        "status": "stopped",
+        "maxmem": 24188551168,
+        "mem": 0,
+        "maxcpu": 6,
+        "maxdisk": 697932185600,
+        "disk": 0
+      },
+      {
+        "id": "node/proxmox-eg",
+        "type": "node",
+        "node": "proxmox-eg",
+        "status": "online",
+        "maxmem": 33480622080,
+        "mem": 10315898880,
+        "maxcpu": 8,
+        "maxdisk": 100861726720,
+        "disk": 19066740736,
+        "hastate": "online"
+      },
+      {
+        "id": "node/proxmox-og",
+        "type": "node",
+        "node": "proxmox-og",
+        "status": "online",
+        "maxmem": 33480675328,
+        "mem": 9731366912,
+        "maxcpu": 8,
+        "maxdisk": 100861726720,
+        "disk": 17955045376,
+        "hastate": "online"
+      },
+      {
+        "id": "node/proxmox-ug",
+        "type": "node",
+        "node": "proxmox-ug",
+        "status": "online",
+        "maxmem": 25107947520,
+        "mem": 18523783168,
+        "maxcpu": 4,
+        "maxdisk": 100861726720,
+        "disk": 46538473472,
+        "hastate": "online"
+      },
+      {
+        "id": "node/proxmox-dt",
+        "type": "node",
+        "node": "proxmox-dt",
+        "status": "online",
+        "maxmem": 16687886336,
+        "mem": 13551329280,
+        "maxcpu": 12,
+        "maxdisk": 100861726720,
+        "disk": 4201316352,
+        "hastate": "online"
+      },
+      {
+        "id": "node/proxmox-ws",
+        "type": "node",
+        "node": "proxmox-ws",
+        "status": "online",
+        "maxmem": 33568526336,
+        "mem": 28731731968,
+        "maxcpu": 16,
+        "maxdisk": 100861726720,
+        "disk": 11524030464,
+        "hastate": "online"
+      },
+      {
+        "id": "storage/proxmox-eg/backup-monthly",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "backup-monthly",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-og/backup-monthly",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "backup-monthly",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-ug/backup-monthly",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "backup-monthly",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-dt/backup-monthly",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "backup-monthly",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-ws/backup-monthly",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "backup-monthly",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-eg/backup-daily",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "backup-daily",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-og/backup-daily",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "backup-daily",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-ug/backup-daily",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "backup-daily",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-dt/backup-daily",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "backup-daily",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-ws/backup-daily",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "backup-daily",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "backup"
+      },
+      {
+        "id": "storage/proxmox-eg/local",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "local",
+        "maxdisk": 100861726720,
+        "disk": 19066740736,
+        "shared": 0,
+        "content": "iso,vztmpl,backup"
+      },
+      {
+        "id": "storage/proxmox-og/local",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "local",
+        "maxdisk": 100861726720,
+        "disk": 17955045376,
+        "shared": 0,
+        "content": "iso,vztmpl,backup"
+      },
+      {
+        "id": "storage/proxmox-ug/local",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "local",
+        "maxdisk": 100861726720,
+        "disk": 46538473472,
+        "shared": 0,
+        "content": "iso,vztmpl,backup"
+      },
+      {
+        "id": "storage/proxmox-dt/local",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "local",
+        "maxdisk": 100861726720,
+        "disk": 4201316352,
+        "shared": 0,
+        "content": "iso,vztmpl,backup"
+      },
+      {
+        "id": "storage/proxmox-ws/local",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "local",
+        "maxdisk": 100861726720,
+        "disk": 11524030464,
+        "shared": 0,
+        "content": "iso,vztmpl,backup"
+      },
+      {
+        "id": "storage/proxmox-dt/tank-zfs",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "tank-zfs",
+        "maxdisk": 1929060024320,
+        "disk": 265675511376,
+        "shared": 0,
+        "content": "rootdir,images"
+      },
+      {
+        "id": "storage/proxmox-eg/hdd-storage",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "hdd-storage",
+        "maxdisk": 100861726720,
+        "disk": 19066740736,
+        "shared": 0,
+        "content": "images,backup,vztmpl,snippets,import,iso,rootdir"
+      },
+      {
+        "id": "storage/proxmox-og/hdd-storage",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "hdd-storage",
+        "maxdisk": 100861726720,
+        "disk": 17955045376,
+        "shared": 0,
+        "content": "images,backup,vztmpl,snippets,import,iso,rootdir"
+      },
+      {
+        "id": "storage/proxmox-ug/hdd-storage",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "hdd-storage",
+        "maxdisk": 100861726720,
+        "disk": 46538473472,
+        "shared": 0,
+        "content": "images,backup,vztmpl,snippets,import,iso,rootdir"
+      },
+      {
+        "id": "storage/proxmox-dt/hdd-storage",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "hdd-storage",
+        "maxdisk": 100861726720,
+        "disk": 4201316352,
+        "shared": 0,
+        "content": "images,backup,vztmpl,snippets,import,iso,rootdir"
+      },
+      {
+        "id": "storage/proxmox-ws/hdd-storage",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "hdd-storage",
+        "maxdisk": 100861726720,
+        "disk": 11524030464,
+        "shared": 0,
+        "content": "images,backup,vztmpl,snippets,import,iso,rootdir"
+      },
+      {
+        "id": "storage/proxmox-eg/local-lvm",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "local-lvm",
+        "maxdisk": 852878163968,
+        "disk": 85287816,
+        "shared": 0,
+        "content": "images,rootdir"
+      },
+      {
+        "id": "storage/proxmox-og/local-lvm",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "local-lvm",
+        "maxdisk": 852878163968,
+        "disk": 85287816,
+        "shared": 0,
+        "content": "images,rootdir"
+      },
+      {
+        "id": "storage/proxmox-ug/local-lvm",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "local-lvm",
+        "maxdisk": 876395626496,
+        "disk": 87639562,
+        "shared": 0,
+        "content": "images,rootdir"
+      },
+      {
+        "id": "storage/proxmox-dt/local-lvm",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "local-lvm",
+        "maxdisk": 374538764288,
+        "disk": 37453876,
+        "shared": 0,
+        "content": "images,rootdir"
+      },
+      {
+        "id": "storage/proxmox-ws/local-lvm",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "local-lvm",
+        "maxdisk": 1836111101952,
+        "disk": 696987774300,
+        "shared": 0,
+        "content": "images,rootdir"
+      },
+      {
+        "id": "storage/proxmox-eg/shared-storage",
+        "type": "storage",
+        "node": "proxmox-eg",
+        "status": "available",
+        "storage": "shared-storage",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "vztmpl,images,rootdir,import,snippets,iso"
+      },
+      {
+        "id": "storage/proxmox-og/shared-storage",
+        "type": "storage",
+        "node": "proxmox-og",
+        "status": "available",
+        "storage": "shared-storage",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "vztmpl,images,rootdir,import,snippets,iso"
+      },
+      {
+        "id": "storage/proxmox-ug/shared-storage",
+        "type": "storage",
+        "node": "proxmox-ug",
+        "status": "available",
+        "storage": "shared-storage",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "vztmpl,images,rootdir,import,snippets,iso"
+      },
+      {
+        "id": "storage/proxmox-dt/shared-storage",
+        "type": "storage",
+        "node": "proxmox-dt",
+        "status": "available",
+        "storage": "shared-storage",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "vztmpl,images,rootdir,import,snippets,iso"
+      },
+      {
+        "id": "storage/proxmox-ws/shared-storage",
+        "type": "storage",
+        "node": "proxmox-ws",
+        "status": "available",
+        "storage": "shared-storage",
+        "maxdisk": 3933641506816,
+        "disk": 3501618495488,
+        "shared": 1,
+        "content": "vztmpl,images,rootdir,import,snippets,iso"
+      },
+      {
+        "id": "network/proxmox-eg/zone/localnetwork",
+        "type": "network",
+        "node": "proxmox-eg",
+        "status": "ok"
+      },
+      {
+        "id": "network/proxmox-og/zone/localnetwork",
+        "type": "network",
+        "node": "proxmox-og",
+        "status": "ok"
+      },
+      {
+        "id": "network/proxmox-ug/zone/localnetwork",
+        "type": "network",
+        "node": "proxmox-ug",
+        "status": "ok"
+      },
+      {
+        "id": "network/proxmox-dt/zone/localnetwork",
+        "type": "network",
+        "node": "proxmox-dt",
+        "status": "ok"
+      },
+      {
+        "id": "network/proxmox-ws/zone/localnetwork",
+        "type": "network",
+        "node": "proxmox-ws",
+        "status": "ok"
+      }
+    ],
+    "ha": [
+      {
+        "digest": "556639381b21a6a9275034699cf6835448289bea",
+        "sid": "vm:103",
+        "state": "started",
+        "type": "vm"
+      },
+      {
+        "digest": "556639381b21a6a9275034699cf6835448289bea",
+        "sid": "vm:102",
+        "state": "started",
+        "type": "vm"
+      },
+      {
+        "digest": "556639381b21a6a9275034699cf6835448289bea",
+        "sid": "vm:106",
+        "state": "started",
+        "type": "vm"
+      }
+    ],
+    "replication": [
+      {
+        "guest": 102,
+        "id": "102-0",
+        "jobnum": 0,
+        "source": "proxmox-eg",
+        "target": "proxmox-og",
+        "type": "local"
+      }
+    ],
+    "backup_jobs": [
+      {
+        "compress": "zstd",
+        "enabled": 1,
+        "fleecing": {
+          "enabled": 0
+        },
+        "id": "backup-14cfefbd-8b8f",
+        "mode": "snapshot",
+        "next-run": 1792623600,
+        "notes-template": "{{guestname}}",
+        "schedule": "mon..sat 01:00",
+        "storage": "backup-daily",
+        "type": "vzdump",
+        "vmid": "100,107,108,109,110,111,112,113,114,116,117,119,120,121,130,219"
+      },
+      {
+        "compress": "zstd",
+        "enabled": 1,
+        "fleecing": {
+          "enabled": 0
+        },
+        "id": "backup-4334e708-5eaa",
+        "mode": "snapshot",
+        "next-run": 1792893600,
+        "notes-template": "{{guestname}}",
+        "repeat-missed": 0,
+        "schedule": "sun 03:00",
+        "storage": "backup-monthly",
+        "type": "vzdump",
+        "vmid": "100,107,108,109,110,111,112,113,114,116,117,119,120,121,130,219"
+      },
+      {
+        "all": 1,
+        "compress": "zstd",
+        "enabled": 0,
+        "fleecing": {
+          "enabled": 0
+        },
+        "id": "543b41bf-c7e7-4332-ad8c-6719a83bc16b",
+        "mailto": "admin@brain.local",
+        "mode": "snapshot",
+        "next-run": 1792620000,
+        "node": "proxmox-ug",
+        "notification-mode": "legacy-sendmail",
+        "schedule": "daily",
+        "storage": "backup-daily",
+        "type": "vzdump"
+      }
+    ]
+  },
+  "checks": {
+    "drift": [],
+    "not_in_enabled_backup_jobs": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      115,
+      180,
+      220
+    ]
+  }
+}

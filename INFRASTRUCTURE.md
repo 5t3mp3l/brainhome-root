@@ -1,7 +1,13 @@
 # 🏠 BrainHome Infrastructure — Übersicht
 
-**Stand**: 26. März 2026
+**Cluster-Platzierungen geprueft**: 21. Oktober 2026; weitere Dienstabschnitte historisch, nicht vollstaendig live validiert.
 **Subnetz**: `192.168.188.0/24`
+
+**Aktuelle physische Architektur und Risiken**: [Digitaler Zwilling](architektur/PHYSISCHE-ARCHITEKTUR.md).
+Fuenf Nodes online, Quorum 3/5; 25 Gaeste, davon 22 laufend.
+Platzierungen aus Node-/Gast-Manifesten stimmen mit dem Live-Cluster ueberein.
+Nur VM102/103/106 sind Proxmox-HA-verwaltet. Backup-Abdeckung und Restore-Erfolge
+nicht mit Cluster-Verfuegbarkeit verwechseln.
 
 **Lessons Learned (aktuell)**: `/home/ERLERNTES-WISSEN.md`
 
@@ -24,8 +30,8 @@
 | caddy-backup | 192.168.188.202 | LXC | CT110 | proxmox-ug | Reverse Proxy MASTER | `ssh caddy-backup` |
 | caddy-og | 192.168.188.201 | LXC | CT120 | proxmox-og | Reverse Proxy BACKUP (OG) | `ssh caddy-og` |
 | caddy-eg | 192.168.188.203 | LXC | CT117 | proxmox-eg | Reverse Proxy BACKUP (EG) | `ssh caddy-eg` |
-| keycloak | 192.168.188.107 | VM | VM107 | proxmox-ug | Keycloak SSO | `ssh keycloak` |
-| monitoring | 192.168.188.108 | VM | VM219 | proxmox-workstation | Grafana + Prometheus + Loki | `ssh monitoring` |
+| keycloak | 192.168.188.107 | VM | VM107 | proxmox-dt | Keycloak SSO | `ssh keycloak` |
+| monitoring | 192.168.188.108 | VM | VM219 | proxmox-ug | Grafana + Prometheus + Loki | `ssh monitoring` |
 | ha-master | 192.168.188.142 | VM | VM101 | proxmox-workstation | Home Assistant Master | `ssh ha-master` |
 | ha-ug | 192.168.188.152 | VM | VM106 | proxmox-ug | Home Assistant UG | `ssh ha-ug` |
 | ha-eg | 192.168.188.194 | VM | VM102 | proxmox-eg | Home Assistant EG | `ssh ha-eg` |
@@ -35,7 +41,9 @@
 | brainhome-prod | 192.168.188.116 | LXC | CT116 | proxmox-ug | Webserver Prod | `ssh brainhome-prod` |
 | brainhome-workstation | 192.168.188.193 | VM | VM113 | proxmox-workstation | VS Code Remote + XRDP Workstation (Ubuntu 24.04 GNOME) | `ssh brainhome-workstation` |
 | pxe-stack | 192.168.188.250 | LXC | CT130 | proxmox-ug | PXE DHCP/TFTP + iPXE HTTP | `ssh pxe-stack` |
-| nextcloud | 192.168.188.121 | VM | VM121 | proxmox-ug | Nextcloud | `ssh nextcloud` |
+| nextcloud | 192.168.188.121 | VM | VM121 | proxmox-dt | Nextcloud | `ssh nextcloud` |
+| vaultwarden | 192.168.188.123 | VM | VM104 | proxmox-dt | Passwortverwaltung | — |
+| stalwart-mail | 192.168.188.124 | VM | VM105 | proxmox-dt | Mailserver | — |
 | brainpi | 192.168.188.155 | Raspberry Pi | — | — | Türklingel/Kamera | `ssh brain@192.168.188.155` |
 | nas | 192.168.188.42 | NAS | — | — | Netzwerkspeicher | `ssh nas` |
 | fritzbox | 192.168.188.1 | Router | — | — | Default Gateway | http://fritzbox.brain |
@@ -45,12 +53,13 @@
 | Node | IP | Rolle | Hosts (wichtig) |
 |------|----|-------|----------------|
 | proxmox-dt | 192.168.188.133 | Core services | VM104 Vaultwarden, VM105 Stalwart Mail, VM107 Keycloak, VM121 Nextcloud |
-| proxmox-workstation | 192.168.188.247 | Workstation + Dev CTs + Cron-Host | CT112 brainhome-dev, VM113 brainhome-workstation, VM101 ha-master, VM219 monitoring |
-| proxmox-ug | 192.168.188.248 | UG Services | CT100 pihole, CT110 caddy-backup, CT116 brainhome-prod, CT130 pxe-stack, VM106–115 |
+| proxmox-ws (SSH-Alias proxmox-workstation) | 192.168.188.247 | Workstation + Dev | CT112 brainhome-dev (stopped), VM113 ubuntu-pc, VM101 haos, VM220 windows-stefan (stopped) |
+| proxmox-ug | 192.168.188.248 | UG Services | CT100 pihole, CT110 caddy, CT116 brainhome-prod, CT130 pxe-stack, VM106 haos-ug, VM115 haos-ga, VM119 openwrt-ug, VM219 grafana |
 | proxmox-eg | 192.168.188.253 | EG Services | CT114 pihole-eg, CT117 caddy-eg, VM102 haos-eg, VM108 openwrt-eg |
 | proxmox-og | 192.168.188.252 | OG Services | CT111 pihole-og, CT120 caddy-og, VM103 haos-og, VM109 openwrt-og |
 
-> Cluster-Inventar live: `bash ${BRAINHOME_ROOT}/workstation/tools/cluster-inventory.sh`
+> Cluster-Inventar live: `python3 architektur/cluster_audit.py --live proxmox-ug`
+> Vollstaendige Gastliste, Hardware und Befunde: [Physische Architektur](architektur/PHYSISCHE-ARCHITEKTUR.md).
 > Tags setzen: `pct set <VMID> --tags "brainhome;..."`
 > devctl-target CT finden: `pvesh get /cluster/resources --type lxc | grep devctl-target`
 

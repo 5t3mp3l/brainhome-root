@@ -16,6 +16,13 @@ must not infer a production path from the workspace location.
 
 ## Manifests
 
+Physical architecture joins the existing node and guest manifests instead of
+duplicating placements. See [physical architecture](architektur/PHYSISCHE-ARCHITEKTUR.md)
+and [asset declarations](architektur/physical.toml). The read-only
+[cluster audit](architektur/cluster_audit.py) resolves node paths from the root
+manifest, validates guest IDs and source references, and can compare them to
+Proxmox over SSH. Live observations remain separate from declarative manifests.
+
 `paths.toml` at the workspace root defines the schema and logical module map.
 Every module that owns deployment or runtime paths has its own `paths.toml`.
 Nested manifests exist only for independently deployed services, such as the

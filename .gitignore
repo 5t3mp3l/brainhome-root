@@ -13,6 +13,16 @@
 !.vscode/
 !.vscode/settings.json
 
+# Track architecture declarations, documentation and reproducible audit evidence.
+!architektur/
+!architektur/*.md
+!architektur/paths.toml
+!architektur/physical.toml
+!architektur/cluster_audit.py
+!architektur/test_cluster_audit.py
+!architektur/assets/
+!architektur/assets/cluster-audit-????-??-??.json
+
 # Track workstation tools and docs
 !workstation/
 workstation/*

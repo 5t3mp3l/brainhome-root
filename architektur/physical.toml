@@ -1,0 +1,47 @@
+schema = 1
+verified_on = "2026-10-21"
+placement_source = "node and guest paths.toml"
+
+[assets.compute_eg]
+node_module = "proxmox_eg"
+vendor = "LENOVO"
+dmi_product = "10RRS1F802"
+cpu = "Intel Core i7-9700"
+location = "unknown"
+power_domain = "unknown"
+switch_port = "unknown"
+
+[assets.compute_og]
+node_module = "proxmox_og"
+vendor = "LENOVO"
+dmi_product = "10RS0033MX"
+cpu = "Intel Core i7-9700"
+location = "unknown"
+power_domain = "unknown"
+switch_port = "unknown"
+
+[assets.compute_ug]
+node_module = "proxmox_ug"
+vendor = "Gigabyte Technology Co., Ltd."
+dmi_product = "GA-990FXA-UD3"
+cpu = "AMD FX-8350"
+location = "unknown"
+power_domain = "unknown"
+switch_port = "unknown"
+
+[assets.compute_ws]
+node_module = "proxmox_ws"
+vendor = "Micro-Star International Co., Ltd."
+dmi_product = "MS-7C37"
+cpu = "AMD Ryzen 7 3800X"
+location = "unknown"
+power_domain = "unknown"
+switch_port = "unknown"
+
+[assets.compute_dt]
+node_module = "proxmox_dt"
+cpu = "AMD Ryzen 5 3600"
+hardware_evidence = "Proxmox node status API; DMI and ZFS SSH access unavailable"
+location = "unknown"
+power_domain = "unknown"
+switch_port = "unknown"

@@ -1,0 +1,23 @@
+# Path manifest schema v1 for BrainHome architecture and house-model data.
+
+schema = 1
+
+[module]
+name = "architektur"
+repository_root = "."
+
+[repository]
+documentation = "ARCHITEKTUR.md"
+architecture_documentation = "BRAINHOME-ARCHITEKTUR.md"
+workbook = "server_house_model.xlsx"
+workbook_tool = "extend_house_model_v2.py"
+assets = "assets"
+physical_inventory = "physical.toml"
+physical_documentation = "PHYSISCHE-ARCHITEKTUR.md"
+cluster_audit = "cluster_audit.py"
+
+[runtime]
+type = "local-workspace"
+
+[migration]
+requires_deployment_change = false

@@ -1,5 +1,10 @@
 # Betriebspruefung 21.10.2026
 
+Nextcloud-Nachtrag: DT-Kernel meldet im Fehlerzeitfenster belegte NAS-NFS-
+Timeouts; anschliessend scheitert die Backup-Ausgabe mit I/O-Fehler.
+NAS-seitige Ursache und weitere Zugangsvoraussetzungen:
+[Nextcloud-NFS-Diagnose](NEXTCLOUD-BACKUP-NFS-2026-10-21.md).
+
 Nachtrag: EG/OG/UG haben inzwischen ein lokales Backup-Tempverzeichnis; CT117
 wurde erfolgreich mit Bandbreitenlimit gesichert und das Archiv auf
 Kompressionsintegritaet geprueft. Der fehlerhafte UG-Lauf wurde nach separater

@@ -15,6 +15,8 @@ import os
 from fnmatch import fnmatchcase
 import json
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -47,6 +49,19 @@ def run_cmd(cmd: List[str], timeout: int = 12) -> Tuple[int, str, str]:
 
 
 def run_json(cmd: List[str], timeout: int = 12) -> Tuple[bool, Any, str]:
+    if cmd and cmd[0] == "pvesh":
+        host = os.environ.get("BRAINHOME_PROXMOX_SSH", "").strip()
+        if not host and shutil.which("pvesh") is None:
+            host = "proxmox-ug"
+        if host:
+            if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.@-]*", host):
+                return False, None, "invalid BRAINHOME_PROXMOX_SSH host"
+            if len(cmd) < 3 or cmd[1] != "get":
+                return False, None, "remote Proxmox transport only permits pvesh get"
+            cmd = [
+                "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+                "-o", "StrictHostKeyChecking=yes", host, shlex.join(cmd),
+            ]
     rc, out, err = run_cmd(cmd, timeout=timeout)
     if rc != 0:
         return False, None, err.strip() or f"command failed: {' '.join(cmd)}"

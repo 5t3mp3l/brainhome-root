@@ -1,0 +1,64 @@
+{
+  "nodes": {
+    "proxmox-dt": {
+      "ip": "192.168.188.133",
+      "dns": [],
+      "role": "Core services and storage"
+    },
+    "proxmox-ws": {
+      "ip": "192.168.188.247",
+      "dns": [],
+      "role": "Workstation and development"
+    },
+    "proxmox-eg": {
+      "ip": "192.168.188.253",
+      "dns": ["proxmox-eg.brain"],
+      "role": "EG Node"
+    },
+    "proxmox-og": {
+      "ip": "192.168.188.252",
+      "dns": ["proxmox-og.brain"],
+      "role": "OG Node"
+    },
+    "proxmox-ug": {
+      "ip": "192.168.188.248",
+      "dns": ["proxmox-ug.brain"],
+      "role": "UG Node"
+    }
+  },
+  "guests": {
+    "100": {"ip": "192.168.188.251", "module": "pihole", "ports": [53, 80, 443], "notes": "Pi-hole primary DNS"},
+    "101": {"ip": "192.168.188.142", "module": "HomeAssistant", "ports": [8123], "notes": "HAOS master"},
+    "102": {"ip": "192.168.188.194", "module": "HomeAssistant", "ports": [8123], "notes": "HAOS EG"},
+    "103": {"ip": "192.168.188.143", "module": "HomeAssistant", "ports": [8123], "notes": "HAOS OG"},
+    "106": {"ip": "192.168.188.152", "module": "HomeAssistant", "ports": [8123], "notes": "HAOS UG"},
+    "107": {"ip": "192.168.188.107", "module": "keycloak", "ports": [8080, 8443], "notes": "Keycloak VM"},
+    "108": {"ip": "192.168.188.149", "module": "openwrt-repeater-setup", "ports": [22, 80, 443], "notes": "OpenWRT EG"},
+    "109": {"ip": "192.168.188.144", "module": "openwrt-repeater-setup", "ports": [22, 80, 443], "notes": "OpenWRT OG"},
+    "110": {"ip": "192.168.188.202", "module": "caddy", "ports": [80, 443], "notes": "Reverse proxy"},
+    "114": {"ip": "192.168.188.245", "module": "pihole", "ports": [53, 80, 443], "notes": "Pi-hole EG"},
+    "120": {"ip": "192.168.188.201", "module": "caddy", "ports": [80, 443], "notes": "Caddy OG"},
+    "111": {"ip": "192.168.188.249", "module": "pihole", "ports": [53, 80, 443], "notes": "Pi-hole secondary DNS"},
+    "112": {"ip": "192.168.188.112", "module": "webserver", "ports": [8080, 8081, 4200], "notes": "BrainHome dev CT"},
+    "113": {"ip": "192.168.188.193", "module": "workstation", "ports": [22], "notes": "Workstation VM"},
+    "104": {"ip": "192.168.188.123", "module": "vaultwarden", "ports": [], "notes": "Vaultwarden VM"},
+    "105": {"ip": "192.168.188.124", "module": "stalwart-mail", "ports": [], "notes": "Stalwart Mail VM"},
+    "115": {"ip": "192.168.188.191", "module": "HomeAssistant", "ports": [8123], "notes": "HAOS GA"},
+    "117": {"ip": "192.168.188.203", "module": "caddy", "ports": [80, 443], "notes": "Caddy EG"},
+    "119": {"ip": "192.168.188.150", "module": "openwrt-repeater-setup", "ports": [22, 80, 443], "notes": "OpenWRT UG"},
+    "121": {"ip": "192.168.188.121", "module": "nextcloud", "ports": [], "notes": "Nextcloud VM"},
+    "180": {"ip": "", "module": "", "ports": [], "notes": "Coral AI VM; stopped at audit"},
+    "219": {"ip": "192.168.188.108", "module": "grafana", "ports": [3000], "notes": "Monitoring VM"},
+    "220": {"ip": "", "module": "", "ports": [], "notes": "Windows Stefan VM; address unknown"},
+    "116": {"ip": "192.168.188.116", "module": "webserver", "ports": [80, 443], "notes": "BrainHome prod CT"},
+    "130": {"ip": "192.168.188.250", "module": "pxe-boot", "ports": [67, 69, 80, 443], "notes": "PXE stack CT"}
+  },
+  "modules": {
+    "webserver": {"ports": [8080, 8081, 4200]},
+    "brainhome-platform": {"ports": [8080, 8081, 4200]},
+    "pihole": {"ports": [53, 80, 443]},
+    "caddy": {"ports": [80, 443]},
+    "keycloak": {"ports": [8080, 8443]},
+    "grafana": {"ports": [3000]}
+  }
+}

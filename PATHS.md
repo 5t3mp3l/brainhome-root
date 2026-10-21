@@ -23,6 +23,11 @@ and [asset declarations](architektur/physical.toml). The read-only
 manifest, validates guest IDs and source references, and can compare them to
 Proxmox over SSH. Live observations remain separate from declarative manifests.
 
+The central inventory manager also supports read-only SSH: it uses local
+`pvesh` when available, otherwise `proxmox-ug`. Set `BRAINHOME_PROXMOX_SSH`
+to explicitly select a known SSH host. Batch mode and strict host-key checking
+remain enabled; only remote `pvesh get` commands are permitted.
+
 `paths.toml` at the workspace root defines the schema and logical module map.
 Every module that owns deployment or runtime paths has its own `paths.toml`.
 Nested manifests exist only for independently deployed services, such as the

@@ -16,7 +16,11 @@
 - [ ] HA-/Replikations- und Storage-Failover pro kritischem Gast testen; nur VM102 hat einen konfigurierten Replikationsjob.
 - [ ] Physische Standorte, USV/Stromkreise, Switch-Ports und DT-Datentraeger vor Ort ergaenzen.
 - [ ] VLAN/IPAM-Zielplan vereinheitlichen und dokumentierte Zugangsdaten kontrolliert rotieren.
-- [ ] SSH-Live-Transport in bestehenden Inventory-Manager integrieren; lokaler Export hat mangels pvesh leere Node-/Gastlisten.
+- [x] Architektur-Allowlist, Commit und Push; Caches und Excel-Backups bleiben ignoriert.
+- [x] SSH-Live-Transport in bestehenden Inventory-Manager integriert; Export hat fuenf Nodes und 25 Gaeste.
+- [x] Backup-Bestand, Taskfehler, WS-Speicherdruck und DT-Paketcache lesend untersucht; [Befunde](architektur/BETRIEBSPRUEFUNG-2026-10-21.md).
+- [ ] Lokales LXC-Backup-tmpdir nach Kapazitaetspruefung und Zustimmung konfigurieren; NFS-chown/rsync-Fehler beheben.
+- [ ] Nextcloud-Backup-I/O-Fehler auf NFS/NAS untersuchen; laufenden UG-Backup-Task nicht ungeprueft abbrechen.
 
 ## Workspace Modularisierung (DDB696)
 

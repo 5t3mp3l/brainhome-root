@@ -20,6 +20,7 @@
 !architektur/physical.toml
 !architektur/cluster_audit.py
 !architektur/test_cluster_audit.py
+!architektur/test_inventory_transport.py
 !architektur/assets/
 !architektur/assets/cluster-audit-????-??-??.json
 
@@ -70,6 +71,7 @@ workstation/docs/*
 !tools/config/
 !tools/config/cron-registry.json
 !tools/config/path-preflight-allowlist.txt
+!tools/config/inventory-overrides.json
 
 # Track pihole sync script
 !pihole/

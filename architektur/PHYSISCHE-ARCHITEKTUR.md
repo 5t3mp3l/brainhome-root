@@ -117,13 +117,16 @@ bekannte Hostschluessel und ausschliesslich `pvesh get`; keine Agent-Ausfuehrung
 Migration, Restart, Cron-Aenderung oder Hostschluessel-Uebernahme.
 
 Der vorhandene [Inventar-Export](../tools/config/infrastructure-inventory.md)
-hat zum Pruefzeitpunkt leere Node-/Gastlisten, weil lokal `pvesh` fehlt.
-Er ist deshalb keine belastbare Clusterquelle. Der neue Pruefer ist ein
-gezielter Prototyp fuer die spaetere Integration dieses SSH-Transports in den
-bestehenden Inventory-Manager, nicht dessen Ersatz oder ein zweiter Scheduler.
+hatte bei der Erstpruefung leere Node-/Gastlisten, weil lokal `pvesh` fehlte.
+Der Inventory-Manager verwendet jetzt ohne lokales `pvesh` automatisch lesendes
+SSH nach `proxmox-ug`; `BRAINHOME_PROXMOX_SSH` ueberschreibt das Ziel.
+Der Export wurde erfolgreich mit fuenf Nodes und 25 Gaesten regeneriert.
+Der Architektur-Pruefer bleibt fuer Manifest-Abgleich und datierte Befunde
+zustaendig, nicht fuer einen zweiten Scheduler. Folgepruefung und konkrete
+Backup-Fehler: [Betriebspruefung](BETRIEBSPRUEFUNG-2026-10-21.md).
 
 Nicht untersucht: konkrete Switch-Verkabelung, USV/Stromkreise, SMART-Werte,
-ZFS-Redundanz und Datentraeger von DT, letzte Backup-/Replikationserfolge,
+ZFS-Redundanz und Datentraeger von DT, letzte Replikationserfolge,
 Restore-Faehigkeit, Dienst-Endpunkte, DNS/VIP-Failover und reale VLANs.
 DT ist per Cluster-API erreichbar; direkter SSH-Zugang war nicht verfuegbar.
 

@@ -76,12 +76,16 @@ neuen UG-Tinys sind kein Abbild dieses Bestands. WS ist bereits Ryzen, nicht FX.
    Vaultwarden und Mail sowie alle fuenf HAOS-Instanzen pruefen. Separate
    HA-/Applikationsbackups wurden nicht untersucht. Konfigurierte Jobs beweisen
    weder erfolgreiche Backups noch eine gelungene Wiederherstellung.
-2. **Gemeinsame Backup-Fehlerdomaene.** `backup-daily`, `backup-monthly` und
-   `shared-storage` verweisen auf dasselbe NAS `.42`. Gemeldet sind rund 3,50 TB
-   von 3,93 TB belegt, etwa 89 %; die Anzeigen nicht dreimal addieren. Der Job
-   fuer `backup-monthly` laeuft sonntags, nicht monatlich. Kein PBS-Storage ist
-   registriert. Separates Backup-Ziel plus offline/offsite Kopie und
-   regelmaessige Restore-Tests sind wichtiger als weitere Dienst-Nodes.
+2. **NAS und gemeinsame Backup-Fehlerdomaene.** `backup-daily`,
+   `backup-monthly` und `shared-storage` verweisen auf dasselbe BrainCloud-NAS
+   `.42`; beide RAID1-Arrays liefen laut Betreiberkonsole nur mit einem
+   Mitglied. Das gesunde Datenmitglied ist `WDC WD40EFRX-68WT0N0` (4 TB).
+   WD Red Plus `WD40EFPX` (4 TB) ist bestellt, aber noch nicht geliefert oder
+   eingebaut; My-Cloud-Modell und Herstellerkompatibilitaet vor Einbau klaeren.
+   Kauf/Rebuild ersetzt keine unabhaengige Datensicherung. Rund 3,50 TB von
+   3,93 TB belegt, etwa 89 %; Storage-Anzeigen nicht addieren.
+   `backup-monthly` laeuft sonntags, nicht monatlich. Kein PBS registriert.
+   Unabhaengiges/offline Ziel und Restore-Tests priorisieren.
 3. **HA ist selektiv.** Nur VM102, VM103 und VM106 sind HA-verwaltet. Es gibt
    einen konfigurierten Replikationsjob 102 von EG nach OG. Keine Aussage ueber
    dessen letzten Erfolg. Storage-Erreichbarkeit, CPU-Modell, Passthrough und

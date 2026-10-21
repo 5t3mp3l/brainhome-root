@@ -16,6 +16,45 @@ must not infer a production path from the workspace location.
 
 ## Manifests
 
+## Workspace Directory Layout
+
+Every direct project directory below the workspace root uses this baseline:
+
+```text
+<project>/
+├── config/
+├── data/
+├── docs/
+├── logs/
+├── scripts/
+└── tools/
+```
+
+Only directories whose name starts with `proxmox-` add the inventory folders
+`vms/` and `ct/`:
+
+```text
+proxmox-<node>/
+├── config/
+├── data/
+├── docs/
+├── logs/
+├── scripts/
+├── tools/
+├── vms/
+└── ct/
+```
+
+Do not create `vms/` or `ct/` in other project directories. New module folders
+created with `brainhome new-module` receive the six baseline directories
+automatically; a target whose directory name starts with `proxmox-` also gets
+`vms/` and `ct/`. Existing content is left untouched. Keep these folders even
+when they are initially empty so projects have the same discoverable layout.
+
+The workspace root itself is not a project directory and does not need copies
+of the six folders. Hidden tool state and external checkouts are also not
+restructured by this rule.
+
 Physical architecture joins the existing node and guest manifests instead of
 duplicating placements. See
 [physical architecture](architektur/PHYSISCHE-ARCHITEKTUR.md) and
@@ -62,8 +101,8 @@ The Proxmox node inventory workspaces use the same base layout as `proxmox-dt`:
 - `proxmox-ug`
 - `proxmox-ws`
 
-Each node has `config`, `data`, `docs`, `logs`, `scripts`, `tools`, `vms`, and
-`ct` directories. Every live VM or container has a nested `paths.toml` with its
+Each node follows the six-directory baseline above and additionally has `vms`
+and `ct` directories. Every live VM or container has a nested `paths.toml` with its
 placement metadata and a `source_module` reference where a canonical service
 source exists. The primary node object owns the canonical `source/` directory;
 replica objects point to that source through `source_module`.

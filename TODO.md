@@ -23,6 +23,12 @@ prüfen. Aktuelle Cluster- und Backup-Befunde:
       180/220 bewusst ein- oder ausschliessen.
 - [ ] Restore-Test und separate/offsite Kopie planen; NAS-Backup-Ziel ist etwa
       89 % belegt.
+- [ ] Bestellte WD Red Plus 4 TB `WD40EFPX` ist noch nicht angekommen: My-Cloud-
+      Modell und Herstellerkompatibilitaet klaeren, defekten Einschub/Platte
+      zuordnen und wichtige Daten unabhaengig sichern; Austausch/Rebuild erst
+      danach nach NAS-Recovery-Anleitung.
+- [ ] Nach erfolgreichem NAS-Rebuild NFS-Backupziel, Archivintegritaet und
+      isolierten Restore pruefen. Kauf ist kein Einbau und kein fertiges Backup.
 - [ ] WS-Swap-Nutzung und DT-RAM ueber Zeit messen, danach Kapazitaetsmassnahmen
       planen.
 - [ ] DT-PVE-Stand 9.1.1 gegen 9.2.10 der anderen Nodes im Wartungsfenster

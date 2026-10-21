@@ -46,7 +46,7 @@ Cluster-Verfuegbarkeit verwechseln.
 | vaultwarden           | 192.168.188.123 | VM                   | VM104    | proxmox-dt          | Passwortverwaltung                                                | —                           |
 | stalwart-mail         | 192.168.188.124 | VM                   | VM105    | proxmox-dt          | Mailserver                                                        | —                           |
 | brainpi               | 192.168.188.155 | Raspberry Pi         | —        | —                   | Türklingel/Kamera                                                 | `ssh brain@192.168.188.155` |
-| nas                   | 192.168.188.42  | NAS                  | —        | —                   | Netzwerkspeicher                                                  | `ssh nas`                   |
+| nas / BrainCloud      | 192.168.188.42  | WD My Cloud (Modell offen) | —   | —                   | RAID1 degradiert; gesundes Laufwerk WD40EFRX 4 TB; WD40EFPX bestellt, Einbau/Rebuild offen | `ssh nas` |
 | fritzbox              | 192.168.188.1   | Router               | —        | —                   | Default Gateway                                                   | <http://fritzbox.brain>     |
 
 ## �️ Proxmox Cluster

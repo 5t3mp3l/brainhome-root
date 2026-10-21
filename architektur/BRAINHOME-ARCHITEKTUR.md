@@ -320,7 +320,7 @@ brainhome/garden/water         → 🔲
 | Gerät              | Typ                      | IP              | Zone | Status              |
 | ------------------ | ------------------------ | --------------- | ---- | ------------------- |
 | **Strommeter**     | ESP32-CAM AI-on-the-Edge | 192.168.188.115 | UG   | ✅ aktiv, 35505 kWh |
-| **NAS**            | Synology / QNAP          | 192.168.188.42  | UG   | ✅ (Proxmox Backup) |
+| **NAS BrainCloud** | WD My Cloud, Modell offen | 192.168.188.42 | UG   | ⚠️ RAID1 degradiert; WD40EFPX bestellt, Einbau offen |
 | **AP EG**          | OpenWRT Repeater         | 192.168.188.70  | EG   | ✅                  |
 | **AP OG**          | OpenWRT Repeater         | 192.168.188.71  | OG   | ✅                  |
 | **brainPiEingang** | Raspberry Pi             | –               | EG   | ⚙️                  |

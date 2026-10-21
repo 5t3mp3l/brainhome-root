@@ -29,6 +29,7 @@ ALLOWED_CATEGORIES = {
 }
 ALLOWED_CONTAINER_TYPES = {"lxc", "ssh", "local", "docker", "kubernetes"}
 ALLOWED_TEMPLATES = {"auto", "full-stack", "backend", "container", "script", "base"}
+STANDARD_DIRECTORIES = ("config", "data", "docs", "logs", "scripts", "tools")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -56,6 +57,15 @@ def fail(msg: str, code: int = 1) -> None:
 
 def warn(msg: str) -> None:
     print(f"[WARN] {msg}", file=sys.stderr)
+
+
+def ensure_module_layout(target_dir: Path) -> tuple[str, ...]:
+    directories = list(STANDARD_DIRECTORIES)
+    if target_dir.name.startswith("proxmox-"):
+        directories.extend(("vms", "ct"))
+    for name in directories:
+        (target_dir / name).mkdir(exist_ok=True)
+    return tuple(directories)
 
 
 def info(msg: str) -> None:
@@ -153,9 +163,11 @@ def main() -> int:
     template_path = resolve_template_path(args.template, args.module_type)
     template = load_template(template_path)
     rendered = render(template, name=name, module_type=args.module_type, category=args.category, container_type=args.container_type)
+    layout = ensure_module_layout(target_dir)
     target_file.write_text(rendered, encoding="utf-8")
 
     print(f"[OK] Created {target_file}")
+    print(f"[OK] Ensured directories: {', '.join(layout)}")
     print(f"  name={name}")
     print(f"  module_type={args.module_type}")
     print(f"  category={args.category}")

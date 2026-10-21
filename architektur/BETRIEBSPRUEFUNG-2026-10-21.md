@@ -1,5 +1,11 @@
 # Betriebspruefung 21.10.2026
 
+Nachtrag: EG/OG haben inzwischen ein lokales Backup-Tempverzeichnis; CT117
+wurde erfolgreich mit Bandbreitenlimit gesichert und das Archiv auf
+Kompressionsintegritaet geprueft. UG bleibt wegen aktiver Sicherung unveraendert.
+Details und Rueckrollpfade: [Umsetzungsprotokoll](BACKUP-TMPDIR-2026-10-21.md).
+Die folgenden Befunde beschreiben die vorherige lesende Untersuchung.
+
 Lesende Untersuchung nach der Architektur-Versionierung. Keine Backup-Jobs,
 Paketstaende, Dienste, Mounts oder laufenden Tasks geaendert.
 

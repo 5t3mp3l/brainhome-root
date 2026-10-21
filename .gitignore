@@ -21,6 +21,7 @@
 !architektur/cluster_audit.py
 !architektur/test_cluster_audit.py
 !architektur/test_inventory_transport.py
+!architektur/configure-backup-tmpdir.sh
 !architektur/assets/
 !architektur/assets/cluster-audit-????-??-??.json
 

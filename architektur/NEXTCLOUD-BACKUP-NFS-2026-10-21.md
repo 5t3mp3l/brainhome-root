@@ -45,17 +45,45 @@ senkt, muss ein kuenftiger Lauf zeigen, nicht die Konfigurationsaenderung allein
 
 ## Zugriffsgrenze
 
-Direkte Hostnamen `nas` und `proxmox-dt` werden auf der Workstation nicht
-aufgeloest. Vom Infrastrukturhost UG aus fehlt fuer NAS `.42` sowie DT `.133`
-ein passender bekannter Hostschluessel. Die strenge SSH-Pruefung wurde beibehalten.
-Keine ungepruefte Schluesseluebernahme, kein `StrictHostKeyChecking=no` und
-keine Aenderung an `known_hosts`.
+Beide Server-Fingerprints wurden unabhaengig ueber ihre Konsolen bestaetigt
+und gegen die vom jeweiligen Server angebotenen Schluessel verglichen:
+
+| Host | Fingerprint | Ergebnis |
+|---|---|---|
+| DT `.133` | `SHA256:mrxOuIBAWJgSYq0Z8jUtSAIyi5zMmyCPa55OWXbvgAk` (ED25519) | Exakt bestaetigt; lesender SSH-Zugriff von UG ueber temporaere Known-Hosts-Datei funktioniert. |
+| NAS `.42` | `SHA256:uprifeGyj+dKH8XRKzcEP+kzy1EXqhuweH/bV+e6Ly0` (RSA 4096) | Exakt bestaetigt; SSH-Hostidentitaet ist sicher, Login mit dokumentiertem Benutzer `sshd` und Workstation-Key wird dennoch abgelehnt. |
+
+Keine permanente Known-Hosts-Aenderung. Fuer NAS wurden weder Passwort-Login
+versucht noch Accounts/`authorized_keys` angepasst. Der zum Versuch angebotene
+Workstation-Key hatte Fingerprint
+`SHA256:GNURaebLVquSSr7CdnWdz6fNciggwaVC7JyXDeTjl0k` (ED25519); der Server
+akzeptierte diesen Schluessel fuer `sshd` nicht.
+
+## Folgepruefung am 21.10.2026, 11:49 CEST
+
+- Von DT waren TCP-Ports 111 (rpcbind) und 2049 (NFS) erreichbar.
+- 20 ICMP-Pings DT -> NAS: 0 % Verlust, Mittelwert 0,404 ms, Maximum 0,804 ms.
+- `zpool status -x`: alle Pools healthy.
+- `nfsstat -c` meldete 692853 Calls und 0 RPC-Retransmits; die NFSv3-Statistik
+   zeigte 516515 Writes. Das ist ein kumulierter Clientstand.
+- `mountstats` fuer den NFS-Transport zeigte separat 1122 Retransmits bei
+   691549 RPC-Transaktionen. Zaehler koennen seit Mountbeginn/NFS-Monitoring
+   laufen; ohne Baseline sind daraus weder Zeitpunkt noch alleiniger Schuldiger
+   ableitbar.
+- DT-Interfacezaehler waren kumulativ: physische NIC 11109 RX-Drops, Bridge
+   335698 RX-Drops. Kein aktueller Linkfehler/Pingverlust; Zaehlerreset und
+   Verlauf wurden nicht ermittelt. Das rechtfertigt einen getrennten Switch-/
+   Bridge-/Treiberverlaufstest, aber keinen Beweis fuer die Ursache des NFS-Ausfalls.
+- NAS-Web-/Konsolenzugang ist damit weiterhin noetig fuer RAID/SMART, NFS-
+   Serverlogs und die tatsaechliche Plattenlatenz im Backup-Zeitfenster.
 
 ## Naechste Schritte
 
 1. NAS- und DT-Zugaenge anhand bestehender vertrauenswuerdiger Konsole oder
    Verwaltungsoberflaeche verifizieren; SSH-Fingerprints unabhaengig abgleichen.
-   Keine Passwoerter oder privaten Schluessel im Chat uebermitteln.
+   Fingerprints sind nun verifiziert; NAS-Loginberechtigung ueber einen
+   autorisierten Administrationsweg klaeren. Keine Passwoerter oder privaten
+   Schluessel im Chat uebermitteln.
 2. Danach lesend NAS-RAID/SMART, NFS-Dienst, Systemprotokolle und DT-NFS-Client-
    Statistiken sowie Netzwerkfehler untersuchen.
 3. `soft` nicht blind auf `hard` umstellen: Dies kann Fehler in unbegrenzt

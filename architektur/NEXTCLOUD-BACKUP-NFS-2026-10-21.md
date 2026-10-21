@@ -27,6 +27,42 @@ scheitert zeitlich zusammen mit belegten NFS-Timeouts. Die Ursache hinter der
 fehlenden NAS-Antwort bleibt offen: NAS-/Datentraegerlast, Netzwerk, NFS-Dienst
 oder andere Ressourcen muessen getrennt untersucht werden.
 
+## NAS-Konsolenbefund: RAID-Mitglied ausgefallen
+
+Der Betreiber lieferte am 21.10.2026 direkte Konsolenausgaben von `BrainCloud`:
+
+```text
+md1 : active raid1 sda2[0]
+   3902822264 blocks super 1.0 [2/1] [U_]
+md0 : active raid1 sdb1[1](F) sda1[0]
+   2094080 blocks super 1.2 [2/1] [U_]
+```
+
+Beide md RAID1-Arrays sind **degradiert** (`[2/1]`). Beim Systemarray `md0`
+ist `sdb1` explizit als fehlerhaft `(F)` markiert; beim grossen Datenarray
+`md1` bleibt nur `sda2` als aktives Mitglied sichtbar. Der ausgefallene
+Gespiegelte Daten-Partner fehlt. Beide Arrays laufen damit aktuell nur noch
+mit einer Kopie.
+
+Das NAS-`dmesg` wiederholt Fehler fuer `/dev/sdb` bei ATA-Passthrough-Kommandos
+`opcode=0x85` mit `hostbyte=0x04`. Weiter unten steht:
+
+```text
+volume_stop.sh /mnt/HD/HD_a2...
+```
+
+Das ist das gleiche Datenvolume, unter dem der Proxmox-Export
+`/mnt/HD/HD_a2/brainhome/proxmox/backup/daily` liegt. Zusammen mit DTs zeitgleichen
+NFS-Timeouts und dem folgenden Schreib-I/O-Fehler ist dies ein **starker
+Zusammenhang**: Ein Laufwerks-/RAID- oder Volume-Ausfall hat den NFS-Backupfehler
+sehr wahrscheinlich verursacht. Das genaue interne Firmwareereignis und die
+physische Ursache des Laufwerksfehlers muessen noch geklaert werden.
+
+NAS-Kapazitaet bei der gezeigten `df -h`-Ausgabe: `HD_a2` 3.6 TB gesamt,
+3.2 TB belegt, 368.1 GB frei (90 %); **kein voller Datentraeger**.
+`/dev/root` und `/dev/loop0` mit 100 % sind kleine Root-/Modul-Images des
+BusyBox-NAS und nicht das Backupdatenvolume. `HD_a4` ist separat eingehangen.
+
 ## Storage und letzte Sicherung
 
 `backup-daily` zeigt auf NAS `.42`, Export
@@ -79,16 +115,28 @@ akzeptierte diesen Schluessel fuer `sshd` nicht.
 
 ## Naechste Schritte
 
-1. NAS- und DT-Zugaenge anhand bestehender vertrauenswuerdiger Konsole oder
-   Verwaltungsoberflaeche verifizieren; SSH-Fingerprints unabhaengig abgleichen.
-   Fingerprints sind nun verifiziert; NAS-Loginberechtigung ueber einen
-   autorisierten Administrationsweg klaeren. Keine Passwoerter oder privaten
-   Schluessel im Chat uebermitteln.
-2. Danach lesend NAS-RAID/SMART, NFS-Dienst, Systemprotokolle und DT-NFS-Client-
-   Statistiken sowie Netzwerkfehler untersuchen.
-3. `soft` nicht blind auf `hard` umstellen: Dies kann Fehler in unbegrenzt
+1. **NAS sofort als degradiert behandeln.** Keine RAID-Reparatur, kein Rebuild,
+   `mdadm --add`, `--assemble --force`, `fsck`, Neustart oder Power-Cycle auf
+   Verdacht. Zuerst unabhaengige Sicherung der wichtigsten nicht ersetzbaren
+   Daten auf ein anderes physisches Ziel; Schreiblast auf dem betroffenen
+   Volume vermeiden, soweit das ohne unkoordiniertes Stoppen produktiver
+   NFS-Gastplatten moeglich ist.
+2. NAS-Konsole lesend verwenden, um `/dev/sda`/`/dev/sdb` sicher auf
+   Seriennummern/Schacht abzubilden, beide Arrays mit `mdadm --detail` zu
+   untersuchen und verfuegbare SMART-Daten zu erfassen. Der Hostkey ist
+   verifiziert, aber der dokumentierte SSH-Key wird vom NAS fuer `sshd`
+   abgelehnt; keinen Login- oder Account-Workaround erzwingen.
+3. RAID-Recovery erst nach unabhaengigem Backup, physischer Laufwerkspruefung
+   und einem NAS-spezifischen Recovery-Plan. Bei wertvollen ungesicherten Daten
+   vor einem Rebuild professionelle Datenrettung erwägen.
+4. Danach Proxmox-Gastplatten auf diesem NFS-Export, NAS-Systemarray `md0`,
+   RAID-Bitmap und Volume-Stop-Ursache gemeinsam bewerten. Das NAS wird nicht
+   nur als Backupziel, sondern auch fuer `shared-storage` von produktiven
+   Gaesten verwendet.
+5. `soft` nicht blind auf `hard` umstellen: Dies kann Fehler in unbegrenzt
    wartende I/O verwandeln; ausserdem dient dasselbe NAS auch produktiven
    Gastplatten. Jede Mount-Aenderung braucht einen separaten Betriebsplan.
-4. Kein erneuter grosser Backup-/Schreibtest ohne Freigabe. Nach der Diagnose
-   einen begrenzten, gestaffelten VM121-Lauf ohne Pruning und danach eine
-   Integritaets-/isolierte Restore-Pruefung planen.
+6. Keine weiteren grossen Backup-/Schreibtests auf dieses RAID, bis Datenstand
+   und Laufwerkszustand geklaert sind. Nach Recovery einen begrenzten,
+   gestaffelten VM121-Lauf ohne Pruning und danach eine Integritaets-/isolierte
+   Restore-Pruefung planen.

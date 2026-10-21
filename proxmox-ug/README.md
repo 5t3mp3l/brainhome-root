@@ -13,6 +13,7 @@ Node-Arbeitsbereich für `proxmox-ug` (`192.168.188.248`).
 - `ct/brainhome-prod/` - CT116, `192.168.188.116` -> `../webserver`
 - `ct/pxe-stack/` - CT130, `192.168.188.250` -> `pxe-boot`
 
-Die primären Node-Objekte enthalten die kanonischen Modulquellen unter `source/`.
-Caddy, Pi-hole, OpenWrt, Grafana und PXE werden auf dieser Node kanonisch
-gepflegt; Replikate auf EG und OG folgen über `brainhome node-mirrors --apply`.
+Die primären Node-Objekte enthalten die kanonischen Modulquellen unter
+`source/`. Caddy, Pi-hole, OpenWrt, Grafana und PXE werden auf dieser Node
+kanonisch gepflegt; Replikate auf EG und OG folgen über
+`brainhome node-mirrors --apply`.

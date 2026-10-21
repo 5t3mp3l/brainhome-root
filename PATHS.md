@@ -8,31 +8,32 @@ must not infer a production path from the workspace location.
 
 ## Path Domains
 
-| Domain | Example | Migration behavior |
-| --- | --- | --- |
-| Workspace | `${BRAINHOME_ROOT}/caddy` | May move |
+| Domain     | Example                                | Migration behavior                        |
+| ---------- | -------------------------------------- | ----------------------------------------- |
+| Workspace  | `${BRAINHOME_ROOT}/caddy`              | May move                                  |
 | Deployment | `/home/caddy` or `/home/brain/grafana` | Changes only through a service deployment |
-| Runtime | `/var/lib/caddy`, `/opt/vaultwarden` | Never moved by a workspace migration |
+| Runtime    | `/var/lib/caddy`, `/opt/vaultwarden`   | Never moved by a workspace migration      |
 
 ## Manifests
 
 Physical architecture joins the existing node and guest manifests instead of
-duplicating placements. See [physical architecture](architektur/PHYSISCHE-ARCHITEKTUR.md)
-and [asset declarations](architektur/physical.toml). The read-only
+duplicating placements. See
+[physical architecture](architektur/PHYSISCHE-ARCHITEKTUR.md) and
+[asset declarations](architektur/physical.toml). The read-only
 [cluster audit](architektur/cluster_audit.py) resolves node paths from the root
 manifest, validates guest IDs and source references, and can compare them to
 Proxmox over SSH. Live observations remain separate from declarative manifests.
 
-The central inventory manager also supports read-only SSH: it uses local
-`pvesh` when available, otherwise `proxmox-ug`. Set `BRAINHOME_PROXMOX_SSH`
-to explicitly select a known SSH host. Batch mode and strict host-key checking
+The central inventory manager also supports read-only SSH: it uses local `pvesh`
+when available, otherwise `proxmox-ug`. Set `BRAINHOME_PROXMOX_SSH` to
+explicitly select a known SSH host. Batch mode and strict host-key checking
 remain enabled; only remote `pvesh get` commands are permitted.
 
 `paths.toml` at the workspace root defines the schema and logical module map.
 Every module that owns deployment or runtime paths has its own `paths.toml`.
 Nested manifests exist only for independently deployed services, such as the
-Vaultwarden and Stalwart VMs under `proxmox-dt/vms`. Do not add copies to passive
-folders such as `docs`, `logs`, `data`, or `config`.
+Vaultwarden and Stalwart VMs under `proxmox-dt/vms`. Do not add copies to
+passive folders such as `docs`, `logs`, `data`, or `config`.
 
 The first migrated application and infrastructure modules are:
 
@@ -54,8 +55,7 @@ The first migrated application and infrastructure modules are:
 - `AI-on-the-edge` with `gasmeter` and `strommeter`
 - independent `webserver` checkout at `../webserver`
 
-The Proxmox node inventory workspaces use the same base layout as
-`proxmox-dt`:
+The Proxmox node inventory workspaces use the same base layout as `proxmox-dt`:
 
 - `proxmox-eg`
 - `proxmox-og`
@@ -63,10 +63,10 @@ The Proxmox node inventory workspaces use the same base layout as
 - `proxmox-ws`
 
 Each node has `config`, `data`, `docs`, `logs`, `scripts`, `tools`, `vms`, and
-`ct` directories. Every live VM or container has a nested `paths.toml` with
-its placement metadata and a `source_module` reference where a canonical
-service source exists. The primary node object owns the canonical `source/`
-directory; replica objects point to that source through `source_module`.
+`ct` directories. Every live VM or container has a nested `paths.toml` with its
+placement metadata and a `source_module` reference where a canonical service
+source exists. The primary node object owns the canonical `source/` directory;
+replica objects point to that source through `source_module`.
 
 Every object with a `source_module` also has a complete managed copy under its
 `source/` directory. Full canonical moves retain the original module contents,
@@ -78,8 +78,8 @@ mirror drift with:
 brainhome-proxmox-node-mirrors --check
 ```
 
-Run `brainhome-proxmox-node-mirrors --apply` only when the node copies should
-be refreshed; it uses `rsync --delete` strictly inside each object `source/`
+Run `brainhome-proxmox-node-mirrors --apply` only when the node copies should be
+refreshed; it uses `rsync --delete` strictly inside each object `source/`
 directory.
 
 The root manifest currently contains 20 internal entries: these 16 application
@@ -96,19 +96,18 @@ remain migration candidates until those deployments receive their own rollout.
 Home Assistant and Pi-hole follow the same rule for their local `devctl`
 entrypoints. Home Assistant's add-on synchronization log path is derived from
 the workspace root; its `/config` target and Pi-hole's `/etc/pihole` paths are
-runtime paths and remain stable.
-`pihole devctl sync` uses the workstation-safe Python synchronizer; the legacy
-shell synchronizer is retained only for a direct run on `proxmox-og` against
-CT111.
+runtime paths and remain stable. `pihole devctl sync` uses the workstation-safe
+Python synchronizer; the legacy shell synchronizer is retained only for a direct
+run on `proxmox-og` against CT111.
 
-Autarkie's Solarman importer derives its configuration and local data paths
-from its module directory. The NAS mount `/mnt/nas-braincloud` remains an
-external runtime path.
+Autarkie's Solarman importer derives its configuration and local data paths from
+its module directory. The NAS mount `/mnt/nas-braincloud` remains an external
+runtime path.
 
 Grafana's VM provisioner derives its cloud-init source from its own repository
 location. Its `/var/lib/vz/snippets` destination remains a Proxmox runtime path.
-Its Home Assistant token helper similarly keeps local repository sources separate
-from the monitoring VM deployment root `/home/brain/grafana`.
+Its Home Assistant token helper similarly keeps local repository sources
+separate from the monitoring VM deployment root `/home/brain/grafana`.
 
 Keycloak's installer resolves the Caddy root certificate through the relative
 module relationship `../caddy/config/caddy-root-ca.crt`; the certificate target
@@ -127,8 +126,8 @@ variables for the HA repository and the versioned `haos-configs` SSH key. The
 tasks target HA EG at `192.168.188.194`.
 
 `HomeAssistant/brainhome.env` derives its local repository and `haos-configs`
-paths from the environment file itself and uses the same HA EG address.
-The compatibility copy under `haos-configs/scripts/brainhome.env` uses the same
+paths from the environment file itself and uses the same HA EG address. The
+compatibility copy under `haos-configs/scripts/brainhome.env` uses the same
 values relative to its own submodule location.
 
 Use `paths.local.toml` for user- or host-specific values. It is intentionally
@@ -193,10 +192,9 @@ prioritized without printing every individual finding.
 `--all-modules` runs a migration matrix over the root workspace, every internal
 module declared in `paths.toml`, and every manifest-declared external checkout.
 It passes when the root has only its intentional external boundary and all
-individual modules are candidate-free.
-The normal matrix mode returns `0` for that expected state; adding `--strict`
-returns `1` whenever any candidate exists, including the intentional root
-external boundary.
+individual modules are candidate-free. The normal matrix mode returns `0` for
+that expected state; adding `--strict` returns `1` whenever any candidate
+exists, including the intentional root external boundary.
 
 For a non-destructive relocation rehearsal, copy the root manifest, module
 manifests, and the preflight allowlist into a temporary staged root, place the
@@ -228,7 +226,8 @@ execute deployment commands, so both are excluded from the default strict gate.
 Review those matchers separately before any major editor-policy change.
 
 Shell examples in module configuration use paths relative to their module root.
-Runtime destinations, such as `/etc/keepalived/keepalived.conf`, remain explicit.
+Runtime destinations, such as `/etc/keepalived/keepalived.conf`, remain
+explicit.
 
 The main VS Code workspace starts integrated terminals through the named
 BrainHome root folder variable. Its external `../webserver` folder remains an
@@ -238,7 +237,8 @@ stored in the root `paths.toml` manifest.
 
 Manifest-declared external checkouts are included in `brainhome discover` when
 their Git checkout and `.brainhome.yml` are present. This keeps `webserver`
-available to `brainhome devctl` while preserving its separate migration boundary.
+available to `brainhome devctl` while preserving its separate migration
+boundary.
 
 The Gasmeter and Strommeter workspace files reference each other through
 `../strommeter` and `../gasmeter`. These are declared sibling relationships
@@ -246,10 +246,10 @@ inside the same AI-on-the-edge parent, not external workspace dependencies. Move
 the parent and both submodules together; do not rewrite those relative paths
 during such a move.
 
-Generated VS Code tasks and newly installed inventory cron lines already use
-the dynamic tools location. Existing installed cron or systemd jobs deliberately
-remain unchanged until their owning module is migrated; update them through their
-owner's deployment workflow or keep a temporary compatibility symlink.
+Generated VS Code tasks and newly installed inventory cron lines already use the
+dynamic tools location. Existing installed cron or systemd jobs deliberately
+remain unchanged until their owning module is migrated; update them through
+their owner's deployment workflow or keep a temporary compatibility symlink.
 
 The central cron registry stores workspace references as `${BRAINHOME_ROOT}`.
 `brainhome-cron deploy` expands the placeholder using the location of its own
@@ -265,7 +265,7 @@ until explicitly redeployed.
    separate deployment plan.
 4. Run `brainhome path-preflight --strict` and resolve every candidate in scope.
 5. Create temporary compatibility symlinks for external callers when needed.
-6. Move one low-risk module, run its health checks, then remove its compatibility
-   link only after a stable observation period.
+6. Move one low-risk module, run its health checks, then remove its
+   compatibility link only after a stable observation period.
 
 No workspace directories were moved while introducing this library.

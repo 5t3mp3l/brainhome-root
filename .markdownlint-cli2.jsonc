@@ -1,0 +1,64 @@
+{
+  "config": {
+    "default": true,
+    "MD013": {
+      "line_length": 160,
+      "code_block_line_length": 160,
+      "code_blocks": false,
+      "tables": false
+    },
+    "MD024": {
+      "siblings_only": true
+    },
+    "MD060": {
+      "enabled": false,
+      "style": "any"
+    },
+    "MD033": {
+      "allowed_elements": [
+        "br",
+        "details",
+        "img",
+        "summary",
+        "module",
+        "any-other-cmd",
+        "cmd",
+        "host",
+        "modul",
+        "keyword",
+        "id",
+        "titel",
+        "text",
+        "ticket-id",
+        "vmid",
+        "module-root"
+      ]
+    },
+    "MD041": {
+      "allow_preamble": true
+    }
+  },
+  "globs": [
+    "**/*.md",
+    "!**/.git/**",
+    "!**/node_modules/**",
+    "!**/.venv/**",
+    "!**/stash-archive/**",
+    "!**/module/**",
+    "!**/.nextcloudsync/**",
+    "!**/source/doc/**",
+    "!**/source/doc/pdf/**"
+  ],
+  "overrides": [
+    {
+      "filter": [
+        "proxmox-ug/ct/brainhome-prod/source/ENTWICKLER-WISSEN.md",
+        "proxmox-ws/ct/brainhome-dev/source/ENTWICKLER-WISSEN.md"
+      ],
+      "config": {
+        "MD013": false
+      },
+      "combine": "merge"
+    }
+  ]
+}

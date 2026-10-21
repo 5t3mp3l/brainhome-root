@@ -9,6 +9,6 @@ Node-Arbeitsbereich für `proxmox-ws` (`192.168.188.247`).
 - `vms/windows-stefan/` - VM220
 - `ct/brainhome-dev/` - CT112, `192.168.188.112` -> `../webserver`
 
-Die primären Node-Objekte enthalten die kanonischen Modulquellen unter `source/`.
-Die Workstation- und HA-Master-Quellen werden auf dieser Node gepflegt; der
-Webserver bleibt als unabhängiger externer Checkout referenziert.
+Die primären Node-Objekte enthalten die kanonischen Modulquellen unter
+`source/`. Die Workstation- und HA-Master-Quellen werden auf dieser Node
+gepflegt; der Webserver bleibt als unabhängiger externer Checkout referenziert.

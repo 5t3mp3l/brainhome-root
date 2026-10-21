@@ -1,13 +1,14 @@
 # 🏠 BrainHome Infrastructure — Übersicht
 
-**Cluster-Platzierungen geprueft**: 21. Oktober 2026; weitere Dienstabschnitte historisch, nicht vollstaendig live validiert.
-**Subnetz**: `192.168.188.0/24`
+**Cluster-Platzierungen geprueft**: 21. Oktober 2026; weitere Dienstabschnitte
+historisch, nicht vollstaendig live validiert. **Subnetz**: `192.168.188.0/24`
 
-**Aktuelle physische Architektur und Risiken**: [Digitaler Zwilling](architektur/PHYSISCHE-ARCHITEKTUR.md).
-Fuenf Nodes online, Quorum 3/5; 25 Gaeste, davon 22 laufend.
-Platzierungen aus Node-/Gast-Manifesten stimmen mit dem Live-Cluster ueberein.
-Nur VM102/103/106 sind Proxmox-HA-verwaltet. Backup-Abdeckung und Restore-Erfolge
-nicht mit Cluster-Verfuegbarkeit verwechseln.
+**Aktuelle physische Architektur und Risiken**:
+[Digitaler Zwilling](architektur/PHYSISCHE-ARCHITEKTUR.md). Fuenf Nodes online,
+Quorum 3/5; 25 Gaeste, davon 22 laufend. Platzierungen aus Node-/Gast-Manifesten
+stimmen mit dem Live-Cluster ueberein. Nur VM102/103/106 sind
+Proxmox-HA-verwaltet. Backup-Abdeckung und Restore-Erfolge nicht mit
+Cluster-Verfuegbarkeit verwechseln.
 
 **Lessons Learned (aktuell)**: `/home/ERLERNTES-WISSEN.md`
 
@@ -15,53 +16,55 @@ nicht mit Cluster-Verfuegbarkeit verwechseln.
 
 ## 🖥️ Hosts & IP-Adressen
 
-| Host | IP | Typ | CT/VM-ID | Node | Dienst | SSH |
-|------|----|-----|----------|------|--------|-----|
-| proxmox-dev | 192.168.188.254 | Retired Proxmox host | — | — | Offline; removed from cluster on 2026-08-30 | — |
-| proxmox-dt | 192.168.188.133 | Proxmox Bare Metal | — | — | Hypervisor for Keycloak, Nextcloud, Vaultwarden and Stalwart Mail | `ssh root@192.168.188.133` |
-| proxmox-workstation | 192.168.188.247 | Proxmox Bare Metal | — | — | Hypervisor Workstation | `ssh proxmox-workstation` |
-| proxmox-ug | 192.168.188.248 | Proxmox Bare Metal | — | — | Hypervisor UG | `ssh proxmox-ug` |
-| proxmox-eg | 192.168.188.253 | Proxmox Bare Metal | — | — | Hypervisor EG | `ssh proxmox-eg` |
-| proxmox-og | 192.168.188.252 | Proxmox Bare Metal | — | — | Hypervisor OG | `ssh proxmox-og` |
-| pihole | 192.168.188.251 | LXC | CT100 | proxmox-ug | Pi-hole v6 + DNS (master) | `ssh pihole` |
-| pihole-og | 192.168.188.249 | LXC | CT111 | proxmox-og | Pi-hole (OG, Sync) | `ssh pihole-og` |
-| pihole-eg | 192.168.188.245 | LXC | CT114 | proxmox-eg | Pi-hole (EG, Sync) | `ssh pihole-eg` |
-| caddy VIP | 192.168.188.200 | Keepalived floating | — | — | Reverse Proxy Einstiegspunkt | `ssh caddy` |
-| caddy-backup | 192.168.188.202 | LXC | CT110 | proxmox-ug | Reverse Proxy MASTER | `ssh caddy-backup` |
-| caddy-og | 192.168.188.201 | LXC | CT120 | proxmox-og | Reverse Proxy BACKUP (OG) | `ssh caddy-og` |
-| caddy-eg | 192.168.188.203 | LXC | CT117 | proxmox-eg | Reverse Proxy BACKUP (EG) | `ssh caddy-eg` |
-| keycloak | 192.168.188.107 | VM | VM107 | proxmox-dt | Keycloak SSO | `ssh keycloak` |
-| monitoring | 192.168.188.108 | VM | VM219 | proxmox-ug | Grafana + Prometheus + Loki | `ssh monitoring` |
-| ha-master | 192.168.188.142 | VM | VM101 | proxmox-workstation | Home Assistant Master | `ssh ha-master` |
-| ha-ug | 192.168.188.152 | VM | VM106 | proxmox-ug | Home Assistant UG | `ssh ha-ug` |
-| ha-eg | 192.168.188.194 | VM | VM102 | proxmox-eg | Home Assistant EG | `ssh ha-eg` |
-| ha-og | 192.168.188.143 | VM | VM103 | proxmox-og | Home Assistant OG | `ssh ha-og` |
-| ha-ga | 192.168.188.191 | VM | VM115 | proxmox-ug | Home Assistant GA | `ssh ha-ga` |
-| brainhome-dev | 192.168.188.112 | LXC | CT112 | proxmox-workstation | Webserver Dev (Quarkus + Angular) | `ssh brainhome-dev` |
-| brainhome-prod | 192.168.188.116 | LXC | CT116 | proxmox-ug | Webserver Prod | `ssh brainhome-prod` |
-| brainhome-workstation | 192.168.188.193 | VM | VM113 | proxmox-workstation | VS Code Remote + XRDP Workstation (Ubuntu 24.04 GNOME) | `ssh brainhome-workstation` |
-| pxe-stack | 192.168.188.250 | LXC | CT130 | proxmox-ug | PXE DHCP/TFTP + iPXE HTTP | `ssh pxe-stack` |
-| nextcloud | 192.168.188.121 | VM | VM121 | proxmox-dt | Nextcloud | `ssh nextcloud` |
-| vaultwarden | 192.168.188.123 | VM | VM104 | proxmox-dt | Passwortverwaltung | — |
-| stalwart-mail | 192.168.188.124 | VM | VM105 | proxmox-dt | Mailserver | — |
-| brainpi | 192.168.188.155 | Raspberry Pi | — | — | Türklingel/Kamera | `ssh brain@192.168.188.155` |
-| nas | 192.168.188.42 | NAS | — | — | Netzwerkspeicher | `ssh nas` |
-| fritzbox | 192.168.188.1 | Router | — | — | Default Gateway | http://fritzbox.brain |
+| Host                  | IP              | Typ                  | CT/VM-ID | Node                | Dienst                                                            | SSH                         |
+| --------------------- | --------------- | -------------------- | -------- | ------------------- | ----------------------------------------------------------------- | --------------------------- |
+| proxmox-dev           | 192.168.188.254 | Retired Proxmox host | —        | —                   | Offline; removed from cluster on 2026-08-30                       | —                           |
+| proxmox-dt            | 192.168.188.133 | Proxmox Bare Metal   | —        | —                   | Hypervisor for Keycloak, Nextcloud, Vaultwarden and Stalwart Mail | `ssh root@192.168.188.133`  |
+| proxmox-workstation   | 192.168.188.247 | Proxmox Bare Metal   | —        | —                   | Hypervisor Workstation                                            | `ssh proxmox-workstation`   |
+| proxmox-ug            | 192.168.188.248 | Proxmox Bare Metal   | —        | —                   | Hypervisor UG                                                     | `ssh proxmox-ug`            |
+| proxmox-eg            | 192.168.188.253 | Proxmox Bare Metal   | —        | —                   | Hypervisor EG                                                     | `ssh proxmox-eg`            |
+| proxmox-og            | 192.168.188.252 | Proxmox Bare Metal   | —        | —                   | Hypervisor OG                                                     | `ssh proxmox-og`            |
+| pihole                | 192.168.188.251 | LXC                  | CT100    | proxmox-ug          | Pi-hole v6 + DNS (master)                                         | `ssh pihole`                |
+| pihole-og             | 192.168.188.249 | LXC                  | CT111    | proxmox-og          | Pi-hole (OG, Sync)                                                | `ssh pihole-og`             |
+| pihole-eg             | 192.168.188.245 | LXC                  | CT114    | proxmox-eg          | Pi-hole (EG, Sync)                                                | `ssh pihole-eg`             |
+| caddy VIP             | 192.168.188.200 | Keepalived floating  | —        | —                   | Reverse Proxy Einstiegspunkt                                      | `ssh caddy`                 |
+| caddy-backup          | 192.168.188.202 | LXC                  | CT110    | proxmox-ug          | Reverse Proxy MASTER                                              | `ssh caddy-backup`          |
+| caddy-og              | 192.168.188.201 | LXC                  | CT120    | proxmox-og          | Reverse Proxy BACKUP (OG)                                         | `ssh caddy-og`              |
+| caddy-eg              | 192.168.188.203 | LXC                  | CT117    | proxmox-eg          | Reverse Proxy BACKUP (EG)                                         | `ssh caddy-eg`              |
+| keycloak              | 192.168.188.107 | VM                   | VM107    | proxmox-dt          | Keycloak SSO                                                      | `ssh keycloak`              |
+| monitoring            | 192.168.188.108 | VM                   | VM219    | proxmox-ug          | Grafana + Prometheus + Loki                                       | `ssh monitoring`            |
+| ha-master             | 192.168.188.142 | VM                   | VM101    | proxmox-workstation | Home Assistant Master                                             | `ssh ha-master`             |
+| ha-ug                 | 192.168.188.152 | VM                   | VM106    | proxmox-ug          | Home Assistant UG                                                 | `ssh ha-ug`                 |
+| ha-eg                 | 192.168.188.194 | VM                   | VM102    | proxmox-eg          | Home Assistant EG                                                 | `ssh ha-eg`                 |
+| ha-og                 | 192.168.188.143 | VM                   | VM103    | proxmox-og          | Home Assistant OG                                                 | `ssh ha-og`                 |
+| ha-ga                 | 192.168.188.191 | VM                   | VM115    | proxmox-ug          | Home Assistant GA                                                 | `ssh ha-ga`                 |
+| brainhome-dev         | 192.168.188.112 | LXC                  | CT112    | proxmox-workstation | Webserver Dev (Quarkus + Angular)                                 | `ssh brainhome-dev`         |
+| brainhome-prod        | 192.168.188.116 | LXC                  | CT116    | proxmox-ug          | Webserver Prod                                                    | `ssh brainhome-prod`        |
+| brainhome-workstation | 192.168.188.193 | VM                   | VM113    | proxmox-workstation | VS Code Remote + XRDP Workstation (Ubuntu 24.04 GNOME)            | `ssh brainhome-workstation` |
+| pxe-stack             | 192.168.188.250 | LXC                  | CT130    | proxmox-ug          | PXE DHCP/TFTP + iPXE HTTP                                         | `ssh pxe-stack`             |
+| nextcloud             | 192.168.188.121 | VM                   | VM121    | proxmox-dt          | Nextcloud                                                         | `ssh nextcloud`             |
+| vaultwarden           | 192.168.188.123 | VM                   | VM104    | proxmox-dt          | Passwortverwaltung                                                | —                           |
+| stalwart-mail         | 192.168.188.124 | VM                   | VM105    | proxmox-dt          | Mailserver                                                        | —                           |
+| brainpi               | 192.168.188.155 | Raspberry Pi         | —        | —                   | Türklingel/Kamera                                                 | `ssh brain@192.168.188.155` |
+| nas                   | 192.168.188.42  | NAS                  | —        | —                   | Netzwerkspeicher                                                  | `ssh nas`                   |
+| fritzbox              | 192.168.188.1   | Router               | —        | —                   | Default Gateway                                                   | <http://fritzbox.brain>     |
 
 ## �️ Proxmox Cluster
 
-| Node | IP | Rolle | Hosts (wichtig) |
-|------|----|-------|----------------|
-| proxmox-dt | 192.168.188.133 | Core services | VM104 Vaultwarden, VM105 Stalwart Mail, VM107 Keycloak, VM121 Nextcloud |
-| proxmox-ws (SSH-Alias proxmox-workstation) | 192.168.188.247 | Workstation + Dev | CT112 brainhome-dev (stopped), VM113 ubuntu-pc, VM101 haos, VM220 windows-stefan (stopped) |
-| proxmox-ug | 192.168.188.248 | UG Services | CT100 pihole, CT110 caddy, CT116 brainhome-prod, CT130 pxe-stack, VM106 haos-ug, VM115 haos-ga, VM119 openwrt-ug, VM219 grafana |
-| proxmox-eg | 192.168.188.253 | EG Services | CT114 pihole-eg, CT117 caddy-eg, VM102 haos-eg, VM108 openwrt-eg |
-| proxmox-og | 192.168.188.252 | OG Services | CT111 pihole-og, CT120 caddy-og, VM103 haos-og, VM109 openwrt-og |
+| Node                                       | IP              | Rolle             | Hosts (wichtig)                                                                                                                 |
+| ------------------------------------------ | --------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| proxmox-dt                                 | 192.168.188.133 | Core services     | VM104 Vaultwarden, VM105 Stalwart Mail, VM107 Keycloak, VM121 Nextcloud                                                         |
+| proxmox-ws (SSH-Alias proxmox-workstation) | 192.168.188.247 | Workstation + Dev | CT112 brainhome-dev (stopped), VM113 ubuntu-pc, VM101 haos, VM220 windows-stefan (stopped)                                      |
+| proxmox-ug                                 | 192.168.188.248 | UG Services       | CT100 pihole, CT110 caddy, CT116 brainhome-prod, CT130 pxe-stack, VM106 haos-ug, VM115 haos-ga, VM119 openwrt-ug, VM219 grafana |
+| proxmox-eg                                 | 192.168.188.253 | EG Services       | CT114 pihole-eg, CT117 caddy-eg, VM102 haos-eg, VM108 openwrt-eg                                                                |
+| proxmox-og                                 | 192.168.188.252 | OG Services       | CT111 pihole-og, CT120 caddy-og, VM103 haos-og, VM109 openwrt-og                                                                |
 
-> Cluster-Inventar live: `python3 architektur/cluster_audit.py --live proxmox-ug`
-> Vollstaendige Gastliste, Hardware und Befunde: [Physische Architektur](architektur/PHYSISCHE-ARCHITEKTUR.md).
-> Tags setzen: `pct set <VMID> --tags "brainhome;..."`
-> devctl-target CT finden: `pvesh get /cluster/resources --type lxc | grep devctl-target`
+> Cluster-Inventar live:
+> `python3 architektur/cluster_audit.py --live proxmox-ug` Vollstaendige
+> Gastliste, Hardware und Befunde:
+> [Physische Architektur](architektur/PHYSISCHE-ARCHITEKTUR.md). Tags setzen:
+> `pct set <VMID> --tags "brainhome;..."` devctl-target CT finden:
+> `pvesh get /cluster/resources --type lxc | grep devctl-target`
 
 ---
 
@@ -69,14 +72,17 @@ nicht mit Cluster-Verfuegbarkeit verwechseln.
 
 **SSH Key (Infra)**: `/root/.ssh/pihole_key` (ed25519) — auf allen Proxmox-Nodes
 **SSH Key (HA)**: `${BRAINHOME_ROOT}/haos-configs/.ssh/vscode_rsa` (ed25519)
-**SSH Key (Workstation)**: `/home/brain/.ssh/brainhome_ws` (ed25519) — auf brainhome-workstation VM
-**SSH Config**: `/root/.ssh/config` (auf Proxmox-Nodes identisch), `/home/brain/.ssh/config` (auf Workstation-VM)
+**SSH Key (Workstation)**: `/home/brain/.ssh/brainhome_ws` (ed25519) — auf
+brainhome-workstation VM **SSH Config**: `/root/.ssh/config` (auf Proxmox-Nodes
+identisch), `/home/brain/.ssh/config` (auf Workstation-VM)
 
 > **brainhome_ws Pubkey**:
 > `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1PXQ2VV/mpxOqu0XBurzXcnyzfU87RIx1kiQQTZ9hh brain@brainhome-workstation`
-> Muss in `root@proxmox-workstation:~/.ssh/authorized_keys` und `root@proxmox-ug:~/.ssh/authorized_keys` eingetragen sein.
+> Muss in `root@proxmox-workstation:~/.ssh/authorized_keys` und
+> `root@proxmox-ug:~/.ssh/authorized_keys` eingetragen sein.
 
-Alle Hosts sind in `/root/.ssh/config` konfiguriert (versioniert in `${BRAINHOME_ROOT}/workstation/`):
+Alle Hosts sind in `/root/.ssh/config` konfiguriert (versioniert in
+`${BRAINHOME_ROOT}/workstation/`):
 
 ```bash
 # Proxmox-Nodes
@@ -127,38 +133,38 @@ ssh nas                  # sshd@192.168.188.42 (pihole_key)
 
 Alle `*.brain` Dienste über Caddy (.200):
 
-| Domain | IP | Dienst |
-|--------|----|--------|
-| ha-ug.brain | 192.168.188.200 | HA UG (via Caddy) |
-| ha-eg.brain | 192.168.188.200 | HA EG (via Caddy) |
-| ha-og.brain | 192.168.188.200 | HA OG (via Caddy) |
-| ha-ga.brain | 192.168.188.200 | HA GA (via Caddy) |
-| ha-master.brain | 192.168.188.200 | HA Master (via Caddy) |
-| keycloak.brain | 192.168.188.200 | Keycloak SSO (via Caddy) |
-| proxmox.brain | 192.168.188.200 | Proxmox DEV (via Caddy) |
-| pihole.brain | 192.168.188.200 | Pi-hole Admin (via Caddy) |
-| grafana.brain | 192.168.188.200 | Grafana (via Caddy) |
-| strommeter.brain | 192.168.188.200 | Strommeter (via Caddy) |
-| auth.brain | 192.168.188.200 | oauth2-proxy (via Caddy) |
-| caddy.brain | 192.168.188.200 | Caddy direkt |
-| pxe.brain | 192.168.188.250 | PXE Host (dedizierter LXC/VM auf proxmox-ug) |
-| monitoring.brain | 192.168.188.108 | Monitoring VM direkt |
-| proxmox-eg.brain | 192.168.188.253 | Proxmox EG (direkt) |
-| pihole-og.brain | 192.168.188.249 | Pi-hole 2 Admin (direkt) |
-| ap-eg.brain | 192.168.188.70 | WiFi AP EG (direkt) |
-| ap-og.brain | 192.168.188.71 | WiFi AP OG (direkt) |
-| nas.brain | 192.168.188.42 | NAS (direkt) |
-| fritzbox.brain | 192.168.188.1 | Fritzbox (direkt) |
+| Domain           | IP              | Dienst                                       |
+| ---------------- | --------------- | -------------------------------------------- |
+| ha-ug.brain      | 192.168.188.200 | HA UG (via Caddy)                            |
+| ha-eg.brain      | 192.168.188.200 | HA EG (via Caddy)                            |
+| ha-og.brain      | 192.168.188.200 | HA OG (via Caddy)                            |
+| ha-ga.brain      | 192.168.188.200 | HA GA (via Caddy)                            |
+| ha-master.brain  | 192.168.188.200 | HA Master (via Caddy)                        |
+| keycloak.brain   | 192.168.188.200 | Keycloak SSO (via Caddy)                     |
+| proxmox.brain    | 192.168.188.200 | Proxmox DEV (via Caddy)                      |
+| pihole.brain     | 192.168.188.200 | Pi-hole Admin (via Caddy)                    |
+| grafana.brain    | 192.168.188.200 | Grafana (via Caddy)                          |
+| strommeter.brain | 192.168.188.200 | Strommeter (via Caddy)                       |
+| auth.brain       | 192.168.188.200 | oauth2-proxy (via Caddy)                     |
+| caddy.brain      | 192.168.188.200 | Caddy direkt                                 |
+| pxe.brain        | 192.168.188.250 | PXE Host (dedizierter LXC/VM auf proxmox-ug) |
+| monitoring.brain | 192.168.188.108 | Monitoring VM direkt                         |
+| proxmox-eg.brain | 192.168.188.253 | Proxmox EG (direkt)                          |
+| pihole-og.brain  | 192.168.188.249 | Pi-hole 2 Admin (direkt)                     |
+| ap-eg.brain      | 192.168.188.70  | WiFi AP EG (direkt)                          |
+| ap-og.brain      | 192.168.188.71  | WiFi AP OG (direkt)                          |
+| nas.brain        | 192.168.188.42  | NAS (direkt)                                 |
+| fritzbox.brain   | 192.168.188.1   | Fritzbox (direkt)                            |
 
 ---
 
 ## 🔒 Caddy Reverse Proxy (CT110)
 
-**IP**: 192.168.188.200
-**Config**: `/etc/caddy/Caddyfile`
-**CA-Cert**: `/home/caddy/caddy-root-ca.crt` (in Chrome als Trusted importiert)
+**IP**: 192.168.188.200 **Config**: `/etc/caddy/Caddyfile` **CA-Cert**:
+`/home/caddy/caddy-root-ca.crt` (in Chrome als Trusted importiert)
 
-Jede HA-Site hat eine eigene oauth2-proxy Instanz (vollständiger Reverse Proxy, **kein** `forward_auth`):
+Jede HA-Site hat eine eigene oauth2-proxy Instanz (vollständiger Reverse Proxy,
+**kein** `forward_auth`):
 
 ```caddyfile
 { local_certs }
@@ -175,44 +181,45 @@ proxmox.brain   { reverse_proxy https://192.168.188.248:8006 { tls_insecure_skip
 strommeter.brain { reverse_proxy 192.168.188.115:80 }
 ```
 
-HTTPS ist für alle Domains aktiv. CA-Zertifikat einmalig in den Browser importieren.
+HTTPS ist für alle Domains aktiv. CA-Zertifikat einmalig in den Browser
+importieren.
 
 ---
 
 ## 🔐 Keycloak SSO (VM107)
 
-**URL**: https://keycloak.brain
-**Admin**: `admin` / `0248Brain8579`
+**URL**: <https://keycloak.brain> **Admin**: `admin` / `0248Brain8579`
 **Realm**: `brainhome`
 
 ### Clients
 
-| Client ID | Secret | Redirect URI |
-|-----------|--------|--------------|
-| homeassistant-ug | `brainhome-homeassistant-ug-secret` | https://ha-ug.brain/* |
-| homeassistant-eg | `brainhome-homeassistant-eg-secret` | https://ha-eg.brain/* |
-| homeassistant-og | `brainhome-homeassistant-og-secret` | https://ha-og.brain/* |
-| homeassistant-ga | `brainhome-homeassistant-ga-secret` | https://ha-ga.brain/* |
-| homeassistant-master | `brainhome-homeassistant-master-secret` | https://ha-master.brain/* |
-| caddy-sso | `brainhome-caddy-sso-secret` | https://auth.brain/oauth2/callback, https://ha-ug.brain/oauth2/callback, https://ha-eg.brain/oauth2/callback, https://ha-og.brain/oauth2/callback, https://ha-master.brain/oauth2/callback |
-| grafana | `brainhome-grafana-secret` | https://grafana.brain/* |
+| Client ID            | Secret                                  | Redirect URI                                                                                                                                                                                         |
+| -------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| homeassistant-ug     | `brainhome-homeassistant-ug-secret`     | <https://ha-ug.brain/>\*                                                                                                                                                                             |
+| homeassistant-eg     | `brainhome-homeassistant-eg-secret`     | <https://ha-eg.brain/>\*                                                                                                                                                                             |
+| homeassistant-og     | `brainhome-homeassistant-og-secret`     | <https://ha-og.brain/>\*                                                                                                                                                                             |
+| homeassistant-ga     | `brainhome-homeassistant-ga-secret`     | <https://ha-ga.brain/>\*                                                                                                                                                                             |
+| homeassistant-master | `brainhome-homeassistant-master-secret` | <https://ha-master.brain/>\*                                                                                                                                                                         |
+| caddy-sso            | `brainhome-caddy-sso-secret`            | <https://auth.brain/oauth2/callback>, <https://ha-ug.brain/oauth2/callback>, <https://ha-eg.brain/oauth2/callback>, <https://ha-og.brain/oauth2/callback>, <https://ha-master.brain/oauth2/callback> |
+| grafana              | `brainhome-grafana-secret`              | <https://grafana.brain/>\*                                                                                                                                                                           |
 
 ### Benutzer
 
-| Benutzer | Passwort | E-Mail | Gruppe |
-|----------|----------|--------|--------|
-| brain | `0248Brain8579` | brain@brain.local | **admin** (Zugriff alle Sites) |
+| Benutzer | Passwort        | E-Mail              | Gruppe                         |
+| -------- | --------------- | ------------------- | ------------------------------ |
+| brain    | `0248Brain8579` | <brain@brain.local> | **admin** (Zugriff alle Sites) |
 
 ### Gruppen & Zugriffsrechte
 
-| Gruppe | ha-ug | ha-eg | ha-og | ha-ga | ha-master |
-|--------|-------|-------|-------|-------|----------|
-| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `eg-user` | ❌ | ✅ | ❌ | ❌ | ✅ |
-| `og-user` | ❌ | ❌ | ✅ | ❌ | ✅ |
-| `gast-user` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Gruppe      | ha-ug | ha-eg | ha-og | ha-ga | ha-master |
+| ----------- | ----- | ----- | ----- | ----- | --------- |
+| `admin`     | ✅    | ✅    | ✅    | ✅    | ✅        |
+| `eg-user`   | ❌    | ✅    | ❌    | ❌    | ✅        |
+| `og-user`   | ❌    | ❌    | ✅    | ❌    | ✅        |
+| `gast-user` | ❌    | ❌    | ❌    | ❌    | ✅        |
 
 Gruppe zu User hinzufügen (Keycloak Admin UI oder API):
+
 ```bash
 # Beispiel: neuen eg-user anlegen
 curl -sk -X POST https://keycloak.brain/admin/realms/brainhome/users \
@@ -221,65 +228,77 @@ curl -sk -X POST https://keycloak.brain/admin/realms/brainhome/users \
 # Dann User → Gruppe zuweisen via Admin UI
 ```
 
-**Group-Mapper**: `oidc-group-membership-mapper` auf Client `caddy-sso` → Claim `groups` in Token
+**Group-Mapper**: `oidc-group-membership-mapper` auf Client `caddy-sso` → Claim
+`groups` in Token
 
 ---
 
 ## 🔄 oauth2-proxy (CT110 — ✅ aktiv)
 
-**Binary**: `/usr/local/bin/oauth2-proxy` v7.7.1
-**Cookie Secret**: `Ntb0R-fr5aajX2gcsV2wYl9L2Mh6sUxdEkbEnRrF2G0=`
+**Binary**: `/usr/local/bin/oauth2-proxy` v7.7.1 **Cookie Secret**:
+`Ntb0R-fr5aajX2gcsV2wYl9L2Mh6sUxdEkbEnRrF2G0=`
 
 ### Instanzen (je eine pro HA-Site)
 
-| Service | Config | Port | Upstream | allowed_groups |
-|---------|--------|------|----------|----------------|
-| `oauth2-proxy-ha-ug` | `/etc/oauth2-proxy/ha-ug.cfg` | 4181 | 192.168.188.152:8123 | `admin` |
-| `oauth2-proxy-ha-eg` | `/etc/oauth2-proxy/ha-eg.cfg` | 4182 | 192.168.188.194:8123 | `eg-user`, `admin` |
-| `oauth2-proxy-ha-og` | `/etc/oauth2-proxy/ha-og.cfg` | 4183 | 192.168.188.143:8123 | `og-user`, `admin` |
-| `oauth2-proxy-ha-ga` | `/etc/oauth2-proxy/ha-ga.cfg` | 4185 | 192.168.188.191:8123 | `admin` |
-| `oauth2-proxy-ha-master` | `/etc/oauth2-proxy/ha-master.cfg` | 4184 | 192.168.188.142:8123 | `admin`, `eg-user`, `og-user`, `gast-user` |
-| ~~`oauth2-proxy` (legacy)~~ | — | ~~4180~~ | — | **gestoppt & deaktiviert** |
+| Service                     | Config                            | Port     | Upstream             | allowed_groups                             |
+| --------------------------- | --------------------------------- | -------- | -------------------- | ------------------------------------------ |
+| `oauth2-proxy-ha-ug`        | `/etc/oauth2-proxy/ha-ug.cfg`     | 4181     | 192.168.188.152:8123 | `admin`                                    |
+| `oauth2-proxy-ha-eg`        | `/etc/oauth2-proxy/ha-eg.cfg`     | 4182     | 192.168.188.194:8123 | `eg-user`, `admin`                         |
+| `oauth2-proxy-ha-og`        | `/etc/oauth2-proxy/ha-og.cfg`     | 4183     | 192.168.188.143:8123 | `og-user`, `admin`                         |
+| `oauth2-proxy-ha-ga`        | `/etc/oauth2-proxy/ha-ga.cfg`     | 4185     | 192.168.188.191:8123 | `admin`                                    |
+| `oauth2-proxy-ha-master`    | `/etc/oauth2-proxy/ha-master.cfg` | 4184     | 192.168.188.142:8123 | `admin`, `eg-user`, `og-user`, `gast-user` |
+| ~~`oauth2-proxy` (legacy)~~ | —                                 | ~~4180~~ | —                    | **gestoppt & deaktiviert**                 |
 
-**Architektur**: Vollständiger Reverse Proxy (nicht `forward_auth`) — Cookie liegt pro Site auf der jeweiligen Domain (z.B. `ha-ug.brain`). Nötig wegen Chrome-Restriction für Single-Label-TLD Cookies (`.brain` wurde blockiert).
+**Architektur**: Vollständiger Reverse Proxy (nicht `forward_auth`) — Cookie
+liegt pro Site auf der jeweiligen Domain (z.B. `ha-ug.brain`). Nötig wegen
+Chrome-Restriction für Single-Label-TLD Cookies (`.brain` wurde blockiert).
 
 **Fixes die nötig waren:**
+
 - Caddy CA-Cert in CT110 System-Trust installiert (`update-ca-certificates`)
-- Keycloak Realm `frontendUrl` auf `https://keycloak.brain` gesetzt (issuer-Claim fix)
+- Keycloak Realm `frontendUrl` auf `https://keycloak.brain` gesetzt
+  (issuer-Claim fix)
 - `auth.brain` DNS-Eintrag in beiden Pi-hole `pihole.toml` eingetragen
 - Keycloak User `brain`: `emailVerified=true` gesetzt
-- Keycloak Client `caddy-sso`: Wildcard-redirectUri entfernt, explizite URIs pro Site
-- Chrome blockiert `Domain=.brain` Cookie → Lösung: oauth2-proxy als RP, Cookie auf jeweiliger Domain
+- Keycloak Client `caddy-sso`: Wildcard-redirectUri entfernt, explizite URIs pro
+  Site
+- Chrome blockiert `Domain=.brain` Cookie → Lösung: oauth2-proxy als RP, Cookie
+  auf jeweiliger Domain
 
 ---
 
 ## 💻 VS Code Development Setup (VM113 brainhome-workstation)
 
-Das Development-Setup läuft vollständig auf **VM113 (brainhome-workstation, 192.168.188.193)**.
-Proxmox-dev wird nicht mehr für Dev genutzt (alle VMs und Cron-Jobs migriert, März 2026).
+Das Development-Setup läuft vollständig auf **VM113 (brainhome-workstation,
+192.168.188.193)**. Proxmox-dev wird nicht mehr für Dev genutzt (alle VMs und
+Cron-Jobs migriert, März 2026).
 
-| Komponente | Version | Pfad |
-|------------|---------|------|
-| Java (JDK) | OpenJDK 17.0.18 | `/usr/lib/jvm/java-17-openjdk-amd64` |
-| Python venv | 3.11 | `/home/.venv` |
-| SSH Keys | pihole_key + vscode_rsa | `/root/.ssh/` + `${BRAINHOME_ROOT}/haos-configs/.ssh/` |
-| SSH Config | alle Shortcuts | `/root/.ssh/config` |
+| Komponente  | Version                 | Pfad                                                   |
+| ----------- | ----------------------- | ------------------------------------------------------ |
+| Java (JDK)  | OpenJDK 17.0.18         | `/usr/lib/jvm/java-17-openjdk-amd64`                   |
+| Python venv | 3.11                    | `/home/.venv`                                          |
+| SSH Keys    | pihole_key + vscode_rsa | `/root/.ssh/` + `${BRAINHOME_ROOT}/haos-configs/.ssh/` |
+| SSH Config  | alle Shortcuts          | `/root/.ssh/config`                                    |
 
 **JAVA_HOME** gesetzt in `/etc/environment` und `/root/.bashrc`:
+
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ```
 
 **Python venv aktivieren:**
+
 ```bash
 source /home/.venv/bin/activate
 ```
 
 **VS Code Remote SSH Verbindung:**
+
 - VS Code → Remote SSH → `brain@192.168.188.193` (brainhome-workstation, VM113)
 - Workspace öffnen: `${BRAINHOME_ROOT}/BrainHome.code-workspace`
 
 **Workspace Tasks** (Ctrl+Shift+P → Tasks: Run Task):
+
 - `⬇️ Pull ALL von HA` — Alle 4 HA-Configs lokal synchronisieren
 - `⬆️ Push MASTER/EG/OG/UG → HA + Reload` — Config deployen + HA neu starten
 - `🔌 Terminal → MASTER/EG/OG/UG` — SSH Terminal zu HA-Instanz
@@ -289,15 +308,16 @@ source /home/.venv/bin/activate
 
 ## 🏠 Home Assistant Instanzen
 
-| Instanz | URL | IP | trusted_proxies |
-|---------|-----|----|-----------------|
-| ha-master | https://ha-master.brain | 192.168.188.142 | 192.168.188.200 ✓ |
-| ha-ug | https://ha-ug.brain | 192.168.188.152 | 192.168.188.200 ✓ |
-| ha-eg | https://ha-eg.brain | 192.168.188.194 | 192.168.188.200 ✓ |
-| ha-og | https://ha-og.brain | 192.168.188.143 | 192.168.188.200 ✓ |
-| ha-ga | https://ha-ga.brain | 192.168.188.191 | 192.168.188.200 ✓ |
+| Instanz   | URL                       | IP              | trusted_proxies   |
+| --------- | ------------------------- | --------------- | ----------------- |
+| ha-master | <https://ha-master.brain> | 192.168.188.142 | 192.168.188.200 ✓ |
+| ha-ug     | <https://ha-ug.brain>     | 192.168.188.152 | 192.168.188.200 ✓ |
+| ha-eg     | <https://ha-eg.brain>     | 192.168.188.194 | 192.168.188.200 ✓ |
+| ha-og     | <https://ha-og.brain>     | 192.168.188.143 | 192.168.188.200 ✓ |
+| ha-ga     | <https://ha-ga.brain>     | 192.168.188.191 | 192.168.188.200 ✓ |
 
 `trusted_proxies` in `configuration.yaml` auf allen 4 Instanzen gesetzt:
+
 ```yaml
 http:
   use_x_forwarded_for: true
@@ -306,6 +326,7 @@ http:
 ```
 
 `auth_providers` auf allen 4 Instanzen konfiguriert:
+
 ```yaml
 # ha-ug / ha-eg / ha-og:
 homeassistant:
@@ -316,22 +337,24 @@ homeassistant:
         - 192.168.188.0/24
       allow_bypass_login: false
     - type: homeassistant
-
 # ha-master: zusätzlich allow_bypass_login: true + trusted_users (brain_id)
 ```
-> HA hat keinen nativen OIDC-Provider — SSO-Gate läuft über oauth2-proxy als vollständiger Reverse Proxy (Port 4181–4184).
+
+> HA hat keinen nativen OIDC-Provider — SSO-Gate läuft über oauth2-proxy als
+> vollständiger Reverse Proxy (Port 4181–4184).
 
 ### HA Multi-Instance (remote_homeassistant)
 
 ha-master aggregiert alle Entitäten von EG/OG/UG via `remote_homeassistant`:
 
-| Verbindung | Status | Token-Speicherort |
-|------------|--------|-------------------|
+| Verbindung  | Status       | Token-Speicherort                                   |
+| ----------- | ------------ | --------------------------------------------------- |
 | MASTER → EG | ✅ connected | `${BRAINHOME_ROOT}/HomeAssistant/haos/secrets.yaml` |
 | MASTER → OG | ✅ connected | `${BRAINHOME_ROOT}/HomeAssistant/haos/secrets.yaml` |
 | MASTER → UG | ✅ connected | `${BRAINHOME_ROOT}/HomeAssistant/haos/secrets.yaml` |
 
 **Konfiguration** auf ha-master:
+
 ```yaml
 # configuration.yaml
 remote_homeassistant:
@@ -349,28 +372,29 @@ remote_homeassistant:
   access_token: !secret ha_ug_token
 ```
 
-> EG/OG/UG haben **kein** `remote_homeassistant` — der Block wurde dort entfernt (war fehlerhaft und zeigte auf sich selbst).
+> EG/OG/UG haben **kein** `remote_homeassistant` — der Block wurde dort entfernt
+> (war fehlerhaft und zeigte auf sich selbst).
 
 ---
 
 ## ⏰ Geplante Jobs (brainhome-cron)
 
 **Alle Cron-Jobs laufen auf VM113 (brainhome-workstation, brain crontab).**
-**Registry**: `${BRAINHOME_ROOT}/tools/config/cron-registry.json`
-**Tool**: `brainhome cron list|check|deploy|remove|show`
-**Migriert von**: proxmox-dev (März 2026)
+**Registry**: `${BRAINHOME_ROOT}/tools/config/cron-registry.json` **Tool**:
+`brainhome cron list|check|deploy|remove|show` **Migriert von**: proxmox-dev
+(März 2026)
 
-| ID | Schedule | Beschreibung | Modul |
-|----|----------|--------------|-------|
-| `openwrt-wifi-monitor` | `*/10 * * * *` | OpenWrt WiFi AP Monitoring | openwrt-repeater-setup |
-| `caddy-ca-distribute` | `0 3 * * 1` | Caddy CA-Cert wöchentlich verteilen | caddy |
-| `pihole-dns-sync` | `*/5 * * * *` | Pi-hole DNS Sync (pihole-1 → og/eg) | pihole |
-| `pihole-gravity-sync` | `0 3 * * *` | Pi-hole Gravity DB täglich | pihole |
-| `ha-addon-sync` | `30 3 * * *` | HA Addon-Versionen sync (master→ug/eg/og) | HomeAssistant |
-| `solarman-cloud-fetch` | `0 6 1 * *` | Solarman Cloud Datenabruf monatlich | autarkie |
-| `brainhome-inventory-monitor` | `*/15 * * * *` | Infrastruktur-Inventory refresh | tools |
-| `brainhome-inventory-export` | `10 2 * * *` | Inventory Markdown-Export täglich | tools |
-| `openwrt-vm-reboot` | `0 3 * * 0` | OpenWrt VM wöchentlicher Neustart | openwrt-repeater-setup |
+| ID                            | Schedule       | Beschreibung                              | Modul                  |
+| ----------------------------- | -------------- | ----------------------------------------- | ---------------------- |
+| `openwrt-wifi-monitor`        | `*/10 * * * *` | OpenWrt WiFi AP Monitoring                | openwrt-repeater-setup |
+| `caddy-ca-distribute`         | `0 3 * * 1`    | Caddy CA-Cert wöchentlich verteilen       | caddy                  |
+| `pihole-dns-sync`             | `*/5 * * * *`  | Pi-hole DNS Sync (pihole-1 → og/eg)       | pihole                 |
+| `pihole-gravity-sync`         | `0 3 * * *`    | Pi-hole Gravity DB täglich                | pihole                 |
+| `ha-addon-sync`               | `30 3 * * *`   | HA Addon-Versionen sync (master→ug/eg/og) | HomeAssistant          |
+| `solarman-cloud-fetch`        | `0 6 1 * *`    | Solarman Cloud Datenabruf monatlich       | autarkie               |
+| `brainhome-inventory-monitor` | `*/15 * * * *` | Infrastruktur-Inventory refresh           | tools                  |
+| `brainhome-inventory-export`  | `10 2 * * *`   | Inventory Markdown-Export täglich         | tools                  |
+| `openwrt-vm-reboot`           | `0 3 * * 0`    | OpenWrt VM wöchentlicher Neustart         | openwrt-repeater-setup |
 
 ```bash
 brainhome cron list            # alle Jobs anzeigen
@@ -385,18 +409,22 @@ brainhome cron remove <id>     # Job aus crontab entfernen
 ## 🏗️ HA Addon Sync (VM113 brainhome-workstation)
 
 **Script**: `${BRAINHOME_ROOT}/HomeAssistant/scripts/ha-addon-update-sync.py`
-**Log**: `${BRAINHOME_ROOT}/HomeAssistant/logs/ha-addon-sync.log`
-**Cron**: `30 3 * * *` auf VM113 (brainhome-workstation) — via `brainhome cron`
+**Log**: `${BRAINHOME_ROOT}/HomeAssistant/logs/ha-addon-sync.log` **Cron**:
+`30 3 * * *` auf VM113 (brainhome-workstation) — via `brainhome cron`
 **SSH-Key**: `~/.ssh/pihole_key` (auf VM113)
 
-Synct Addon-Versionen von ha-master auf alle Remote-Instanzen (ha-ug, ha-eg, ha-og).
+Synct Addon-Versionen von ha-master auf alle Remote-Instanzen (ha-ug, ha-eg,
+ha-og).
 
 **Strategie:**
+
 1. Addon-Liste von ha-master via SSH + `ha apps list` holen
 2. Addon-Liste von jedem Remote holen
-3. Addon auf Remote installiert UND Version ≠ Master → `ha apps update <slug>` auf Remote ausführen
+3. Addon auf Remote installiert UND Version ≠ Master → `ha apps update <slug>`
+   auf Remote ausführen
 
-**Voraussetzung**: SSH-Key `/root/.ssh/pihole_key` muss auf alle HA-Instanzen passen (ist der Fall).
+**Voraussetzung**: SSH-Key `/root/.ssh/pihole_key` muss auf alle HA-Instanzen
+passen (ist der Fall).
 
 ```bash
 # Manuell testen:
@@ -406,7 +434,10 @@ python3 ${BRAINHOME_ROOT}/HomeAssistant/scripts/ha-addon-update-sync.py --dry-ru
 python3 ${BRAINHOME_ROOT}/HomeAssistant/scripts/ha-addon-update-sync.py
 ```
 
-> Hinweis: HA REST API (`/api/`) und Supervisor-API (`/api/hassio/`) sind von extern über Bearer-Tokens aus `.storage/auth` **nicht** nutzbar (Refresh-Token-Format, kein Direct-Bearer). Die `ha` CLI via SSH ist der einzig zuverlässige Weg.
+> Hinweis: HA REST API (`/api/`) und Supervisor-API (`/api/hassio/`) sind von
+> extern über Bearer-Tokens aus `.storage/auth` **nicht** nutzbar
+> (Refresh-Token-Format, kein Direct-Bearer). Die `ha` CLI via SSH ist der
+> einzig zuverlässige Weg.
 
 ---
 
@@ -414,16 +445,17 @@ python3 ${BRAINHOME_ROOT}/HomeAssistant/scripts/ha-addon-update-sync.py
 
 `de_DE.UTF-8` wurde auf allen Debian-Hosts aktiviert und generiert:
 
-| Host | Status |
-|------|--------|
-| proxmox-ug | ✅ OK |
-| proxmox-eg | ✅ OK |
-| CT110 (caddy) | ✅ OK |
-| CT111 (pihole-og) | ✅ OK |
-| CT100 (pihole) | ✅ OK |
-| VM107 (keycloak) | ✅ OK |
+| Host              | Status |
+| ----------------- | ------ |
+| proxmox-ug        | ✅ OK  |
+| proxmox-eg        | ✅ OK  |
+| CT110 (caddy)     | ✅ OK  |
+| CT111 (pihole-og) | ✅ OK  |
+| CT100 (pihole)    | ✅ OK  |
+| VM107 (keycloak)  | ✅ OK  |
 
-Befehl: `sed -i 's/^# de_DE.UTF-8/de_DE.UTF-8/g' /etc/locale.gen && locale-gen && update-locale LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8`
+Befehl:
+`sed -i 's/^# de_DE.UTF-8/de_DE.UTF-8/g' /etc/locale.gen && locale-gen && update-locale LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8`
 
 ---
 
@@ -433,13 +465,20 @@ Befehl: `sed -i 's/^# de_DE.UTF-8/de_DE.UTF-8/g' /etc/locale.gen && locale-gen &
 - [x] Keycloak Login → HA funktioniert für alle 4 Sites ✅
 - [x] `auth.brain` DNS-Eintrag in beiden Pi-hole eingetragen
 - [x] Caddy reverse_proxy für alle 4 HA-Sites (oauth2-proxy als RP)
-- [x] `auth.brain` → redir zu ha-master (legacy oauth2-proxy Port 4180 deaktiviert)
-- [x] Pi-hole Sync: `pihole-sync.py` aktiv — **auf VM113** (cron: */5 DNS, 03:00 Gravity) via `brainhome cron`
-- [x] Keycloak-Gruppen: admin / eg-user / og-user / gast-user mit allowed_groups ✅
-- [x] HA Addon Sync: `ha-addon-update-sync.py` aktiv — **auf VM113** (cron: 03:30) via `brainhome cron` ✅
-- [x] HA MASTER: `remote_homeassistant` → EG/OG/UG alle 3 `connected`, 1380+ Entities aggregiert ✅
-- [x] **proxmox-dev befreit**: alle VMs (104/105) gelöscht, Cron-Jobs auf VM113 migriert (März 2026) ✅
-- [x] **brainhome-cron**: zentrale Cron-Registry + CLI Tool (`brainhome cron`) ✅
+- [x] `auth.brain` → redir zu ha-master (legacy oauth2-proxy Port 4180
+      deaktiviert)
+- [x] Pi-hole Sync: `pihole-sync.py` aktiv — **auf VM113** (cron: \*/5 DNS,
+      03:00 Gravity) via `brainhome cron`
+- [x] Keycloak-Gruppen: admin / eg-user / og-user / gast-user mit allowed_groups
+      ✅
+- [x] HA Addon Sync: `ha-addon-update-sync.py` aktiv — **auf VM113** (cron:
+      03:30) via `brainhome cron` ✅
+- [x] HA MASTER: `remote_homeassistant` → EG/OG/UG alle 3 `connected`, 1380+
+      Entities aggregiert ✅
+- [x] **proxmox-dev befreit**: alle VMs (104/105) gelöscht, Cron-Jobs auf VM113
+      migriert (März 2026) ✅
+- [x] **brainhome-cron**: zentrale Cron-Registry + CLI Tool (`brainhome cron`)
+      ✅
 - [x] JDK 17 + Python venv + SSH Config auf brainhome-workstation ✅
 - [x] JDK 17 + Python venv + SSH Config auf proxmox-eg ✅
 - [x] VS Code Dev-Setup: Workspace mit 14 Tasks (Pull/Push/SSH/Status) ✅
@@ -448,21 +487,27 @@ Befehl: `sed -i 's/^# de_DE.UTF-8/de_DE.UTF-8/g' /etc/locale.gen && locale-gen &
 
 ## ☀️ Solaranlage & Autarkie
 
-> Workspace-Ordner: `/home/autarkie/` | Dokumentation: `/home/autarkie/ENTWICKLER-WISSEN.md`
+> Workspace-Ordner: `/home/autarkie/` | Dokumentation:
+> `/home/autarkie/ENTWICKLER-WISSEN.md`
 
 ### Geräte
-| Inverter | IP | Serial | Cloud-ID | Typ |
-|---|---|---|---|---|
-| West | 192.168.188.88 | 3923624894 | 2303017373 | Deye SUN2000G3 Microinverter |
-| Süd | 192.168.188.97 | 3923704974 | 2303017127 | Deye SUN2000G3 Microinverter |
+
+| Inverter | IP             | Serial     | Cloud-ID   | Typ                          |
+| -------- | -------------- | ---------- | ---------- | ---------------------------- |
+| West     | 192.168.188.88 | 3923624894 | 2303017373 | Deye SUN2000G3 Microinverter |
+| Süd      | 192.168.188.97 | 3923704974 | 2303017127 | Deye SUN2000G3 Microinverter |
 
 ### Integration
-- **HA-Instanz**: HA-UG (192.168.188.152) → `custom_components/solarman` (davidrapan v25.08.16)
+
+- **HA-Instanz**: HA-UG (192.168.188.152) → `custom_components/solarman`
+  (davidrapan v25.08.16)
 - **Protokoll lokal**: SolarmanV5 / Modbus RTU über TCP Port 8899
 - **Cloud API**: Solarman OpenAPI v1.1.6 → `https://globalapi.solarmanpv.com`
-- **Entities**: 100 Solarman-Entities auf HA-UG, auf HA-Master per `remote_homeassistant`
+- **Entities**: 100 Solarman-Entities auf HA-UG, auf HA-Master per
+  `remote_homeassistant`
 
 ### Historische Daten & NAS-Backup
+
 ```bash
 # Alle historischen Daten von der Cloud laden + auf NAS sichern
 python3 /home/autarkie/scripts/fetch-solarman-cloud.py --start 2023-01-01 --sync-nas
@@ -470,10 +515,13 @@ python3 /home/autarkie/scripts/fetch-solarman-cloud.py --start 2023-01-01 --sync
 # In HA-Statistiken importieren (Energie-Dashboard)
 python3 /home/autarkie/scripts/import-ha-statistics.py --all --start 2023-01-01
 ```
+
 - **Lokale Daten**: `/home/autarkie/data/cloud/{west,sued}/YYYY-MM-DD.json`
-- **NAS-Ziel**: `//192.168.188.42/Family Account/Wohnungen/Elmshausen_&_Wiesenberg/Solaranlage/Daten/`
+- **NAS-Ziel**:
+  `//192.168.188.42/Family Account/Wohnungen/Elmshausen_&_Wiesenberg/Solaranlage/Daten/`
 
 ### Status (15.03.2026)
+
 - [x] Solarman-Migration auf davidrapan v25.08.16 abgeschlossen
 - [x] Scripts `fetch-solarman-cloud.py` + `import-ha-statistics.py` bereit
 - [ ] Cloud-API-Credentials (APP_ID/SECRET) noch einzutragen

@@ -1,8 +1,9 @@
-# CT113 Workstation — Client Setup (Remmina RDP)
+# VM113 Workstation — Client Setup (Remmina RDP)
 
 ## Übersicht
 
-CT113 (`brainhome-workstation`, `192.168.188.193`) ist die primäre VS Code / Arbeits-Umgebung (Ubuntu 24.04 GNOME, XRDP Port 3389).
+VM113 (`brainhome-workstation`, `192.168.188.193`) ist die primäre VS Code /
+Arbeits-Umgebung (Ubuntu 24.04 GNOME, XRDP Port 3389).
 
 **Login:** `brain` / `0248Brain8579`
 
@@ -15,21 +16,23 @@ CT113 (`brainhome-workstation`, `192.168.188.193`) ist die primäre VS Code / Ar
 ```bash
 # Auf eg-stefan-lp als stefan user ausführen:
 curl -sO http://192.168.188.193/remmina-setup-ct113.sh 2>/dev/null \
-  || scp root@192.168.188.248:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/
+  || scp root@192.168.188.247:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/
 bash /tmp/remmina-setup-ct113.sh
 ```
 
-Oder manuell (Script liegt auf proxmox-master):
+Oder manuell (Script liegt auf `proxmox-ws`):
+
 ```bash
-scp root@192.168.188.248:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/remmina-setup-ct113.sh
+scp root@192.168.188.247:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/remmina-setup-ct113.sh
 bash /tmp/remmina-setup-ct113.sh
 ```
 
 ### ug-buero-tc (192.168.188.148) — Thin Client UG/Büro
 
 Gleicher Vorgang wenn der TC online ist:
+
 ```bash
-scp root@192.168.188.248:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/remmina-setup-ct113.sh
+scp root@192.168.188.247:/home/workstation/scripts/remmina-setup-ct113.sh /tmp/remmina-setup-ct113.sh
 bash /tmp/remmina-setup-ct113.sh
 ```
 
@@ -82,12 +85,12 @@ persönlichen Chrome/NSS-Speicher und erstellt den Nextcloud-Autostart. Die
 Anmeldung am persönlichen Nextcloud-Konto und die Auswahl der Sync-Ordner
 bleiben ein einmaliger interaktiver Schritt des Benutzers.
 
-| Komponente | Pfad auf VM 113 |
-| --- | --- |
+| Komponente                       | Pfad auf VM 113                                             |
+| -------------------------------- | ----------------------------------------------------------- |
 | Einzelnen Benutzer konfigurieren | `/usr/local/sbin/configure-user-cloud-access.sh <benutzer>` |
-| Alle lokalen Benutzer prüfen | `/usr/local/sbin/provision-local-cloud-users.sh` |
-| Auslöser | `brainhome-user-cloud-provision.path` |
-| Einmaliger Dienst | `brainhome-user-cloud-provision.service` |
+| Alle lokalen Benutzer prüfen     | `/usr/local/sbin/provision-local-cloud-users.sh`            |
+| Auslöser                         | `brainhome-user-cloud-provision.path`                       |
+| Einmaliger Dienst                | `brainhome-user-cloud-provision.service`                    |
 
 Nach einer Benutzeranlage kann der Status geprüft werden:
 
@@ -121,7 +124,7 @@ xfreerdp /v:192.168.188.193 /u:brain /p:0248Brain8579 /w:1920 /h:1080 2>/dev/nul
 
 ## Netzwerk-Topologie
 
-```
+```text
 ug-buero-tc (192.168.188.148) ──┐
                                  ├── RDP :3389 ──► CT113 brainhome-workstation
 eg-stefan-lp (192.168.188.58)  ──┘                (192.168.188.193, proxmox-ws)
@@ -129,10 +132,10 @@ eg-stefan-lp (192.168.188.58)  ──┘                (192.168.188.193, proxmo
 
 ## Bekannte Probleme
 
-| Problem | Lösung |
-|---------|--------|
-| "Authentication failed" | Login: brain / 0248Brain8579 |
-| Schwarzer Bildschirm nach Login | .xsession vorhanden? `ls ~/.xsession` auf CT113 |
-| GNOME startet nicht | startwm.sh nutzt GNOME X11 Session |
-| Color Manager Dialog | Polkit Regel: `/etc/polkit-1/rules.d/02-allow-color-manager.rules` |
-| Wayland statt X11 | GDM3: `WaylandEnable=false` in `/etc/gdm3/custom.conf` |
+| Problem                         | Lösung                                                             |
+| ------------------------------- | ------------------------------------------------------------------ |
+| "Authentication failed"         | Login: brain / 0248Brain8579                                       |
+| Schwarzer Bildschirm nach Login | .xsession vorhanden? `ls ~/.xsession` auf CT113                    |
+| GNOME startet nicht             | startwm.sh nutzt GNOME X11 Session                                 |
+| Color Manager Dialog            | Polkit Regel: `/etc/polkit-1/rules.d/02-allow-color-manager.rules` |
+| Wayland statt X11               | GDM3: `WaylandEnable=false` in `/etc/gdm3/custom.conf`             |

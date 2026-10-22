@@ -116,6 +116,8 @@ paths.local.toml
 !proxmox-dt/
 proxmox-dt/*
 !proxmox-dt/paths.toml
+!proxmox-dt/docs/
+!proxmox-dt/docs/*.md
 !proxmox-dt/vms/
 proxmox-dt/vms/*
 !proxmox-dt/vms/vaultwarden/

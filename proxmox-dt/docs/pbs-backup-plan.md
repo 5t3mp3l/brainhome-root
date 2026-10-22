@@ -1,0 +1,134 @@
+# Proxmox Backup Server Plan and Runbook
+
+Status: 2026-10-22. Live values in this document are observations from the
+deployment date, not immutable configuration defaults. No passwords or token
+secrets belong here.
+
+## Goal and scope
+
+Use Proxmox Backup Server (PBS) on `proxmox-dt` to move Proxmox VM/CT backups
+off the degraded BrainCloud NAS. PBS's datastore is on the DT-local ZFS pool,
+not on BrainCloud. This removes the NAS from the backup destination path, but
+does not remove the NAS dependency of guests whose source disks still live on
+`shared-storage`.
+
+The rollout is staged: retain existing archives and job definitions, seed the
+three Home Assistant VMs, verify the archives, and test restore before deciding
+whether to restore the NAS schedules or migrate their remaining guests to PBS.
+
+## PBS deployment
+
+| Item | Current value |
+| --- | --- |
+| Proxmox node / VM | `proxmox-dt` / VM 118 `pbs-dt` |
+| PBS version | 4.2.0 |
+| PBS address | `192.168.188.37` (currently obtained by DHCP; reserve this address before relying on long-term schedules) |
+| VM resources | 4 vCPU, 6 GiB RAM, ballooning disabled; `onboot=1`, startup order 99 |
+| OS disk | 32 GiB on DT `local-lvm` |
+| Datastore disk | 512 GiB virtual disk on DT `tank-zfs`, excluded from backup of PBS VM itself |
+| Filesystem / mount | ext4 on PBS `/dev/sdb1`, mounted at `/mnt/datastore/pbs-dt` |
+| PBS datastore | `pbs-dt`; around 503 GiB formatted, 478 GiB free immediately after creation |
+| PBS TLS fingerprint | `95:29:F0:21:CE:82:E2:BC:63:8A:16:D8:C8:02:88:7A:95:43:62:96:E5:70:8D:7B:CF:1B:6A:15:77:89:9E:38` |
+| PBS auth identity | `pve-backup@pbs!pve-cluster`; dedicated, limited to `DatastoreBackup` on `/datastore/pbs-dt` |
+| PVE storage ID | `pbs-dt`; PBS API verified reachable from EG, OG, UG and WS nodes |
+
+The `tank` ZFS pool was `ONLINE` with no known data errors when checked. It was
+a three-device RAIDZ1. PBS is a VM on the same DT host, so this datastore is
+separate from BrainCloud but is not a second physical host or an off-site
+copy. A future independent/off-site copy and restore plan are still required.
+
+## Backup destinations and jobs
+
+### PBS Home Assistant job
+
+| Setting | Value |
+| --- | --- |
+| Job ID | `haos-pbs-dt` |
+| Schedule | Daily, `12:00` local time |
+| Guests | VM 102 `haos-eg`, VM 103 `haos-og`, VM 106 `haos-ug` |
+| Destination | `pbs-dt` |
+| Mode / compression | Snapshot / Zstandard |
+| Bandwidth limit | 4096 KiB/s (4 MiB/s) |
+| Retention | Keep last 7; pruning enabled |
+
+The job was enabled on 2026-10-22. Its first scheduled run is 2026-10-23 at
+12:00 CEST. Manual initial seeds were being run serially because the three HA
+VM disks are still on the NAS-backed NFS `shared-storage`.
+
+### BrainCloud/NFS jobs
+
+The pre-existing cluster jobs remain configured but were temporarily disabled
+on 2026-10-22 after the BrainCloud RAID member failure and NFS/I/O errors:
+
+| Job ID | Schedule | Destination | State |
+| --- | --- | --- | --- |
+| `backup-14cfefbd-8b8f` | Monday-Saturday 01:00 | `backup-daily` on BrainCloud | Disabled, retained |
+| `backup-4334e708-5eaa` | Sunday 03:00 (weekly despite the storage name) | `backup-monthly` on BrainCloud | Disabled, retained |
+
+These jobs include guests other than HA. Their automatic backups are therefore
+also paused. Do not re-enable them until the NAS/NFS path is healthy or a PBS
+job covers their guests. Do not remove old NAS archives during recovery.
+
+## Verified pilot
+
+### HA-OG VM 103
+
+- Manual PBS snapshot on 2026-10-22, limited to 4 MiB/s; completed successfully
+  in about 2 h 19 min.
+- PBS snapshot: `pbs-dt:backup/vm/103/2026-10-22T11:10:46Z`.
+- PBS Verify completed with `TASK OK`, 100%, zero errors.
+- The PBS UI reported about 1.49 GB of datastore usage for the pilot archive;
+  PVE lists the virtual archive size as about 32 GiB. These values describe
+  different quantities.
+- A restore was performed to VM 190 `haos-og-pbs-restore-test` on local
+  `tank-zfs`. Restore task completed `OK`; unique MAC assigned; `onboot=0` and
+  VM remains stopped.
+- Do not boot VM 190 on the production network: the restored HA configuration
+  may retain the production IP and entity state. Delete the test VM only after
+  review; it is disposable, but cleanup was intentionally not automatic.
+
+### HA-EG VM 102 and HA-UG VM 106
+
+Initial manual PBS seeds were started one at a time after the BrainCloud
+schedules were paused. Check the live PVE task and PBS datastore before marking
+either complete. Verify each resulting PBS snapshot and record the final task
+status here. Do not start UG's seed while EG's seed is active.
+
+## Operator checks
+
+Before a backup:
+
+1. Confirm PBS storage `pbs-dt` is active with `pvesm status --storage pbs-dt`.
+2. Confirm the source node's `shared-storage` is active and inspect recent
+   kernel logs for NFS timeouts or blocked I/O.
+3. Confirm no other `vzdump` task is active. Keep initial HA seeds serial.
+4. Start manual seeds with snapshot mode, Zstandard compression, `--remove 0`
+   and a conservative bandwidth cap; do not prune during pilot tests.
+
+After each backup:
+
+1. Confirm the PVE task ends `OK` and the expected `vm/<VMID>` snapshot appears
+   in the PBS datastore.
+2. Run PBS Verify and require `TASK OK` / zero errors.
+3. For restore validation, restore to a free VMID on local ZFS, keep it
+   stopped, and do not connect it to the production network until its IP,
+   identity and network are isolated.
+
+## Remaining work and safety gates
+
+- [ ] Finish and verify manual initial seeds for VM 102 and VM 106.
+- [ ] Inspect the next scheduled `haos-pbs-dt` run and confirm retention keeps
+      seven usable snapshots for each HA VM.
+- [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS
+      coverage; create and test those jobs before re-enabling or deleting the
+      old schedules.
+- [ ] Reserve PBS address `192.168.188.37` in DHCP/DNS and verify PVE TLS
+      fingerprint after any certificate replacement.
+- [ ] Plan a second independent/off-site copy. DT-local PBS protects against
+      the NAS failure domain, but not a failure of `proxmox-dt` or its ZFS pool.
+- [ ] Only after a tested restore and healthy NAS review, decide whether to
+      re-enable the two NFS jobs. Never prune the NAS archives as part of this
+      migration without a separate retention review.
+
+Token secrets, PBS root credentials and recovery keys must be kept in the
+approved secret store; record only token IDs and ACL scope here.

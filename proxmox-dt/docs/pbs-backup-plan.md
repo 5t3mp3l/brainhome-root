@@ -1,6 +1,6 @@
 # Proxmox Backup Server Plan and Runbook
 
-Status: 2026-10-22. Live values in this document are observations from the
+Status: 2026-10-23. Live values in this document are observations from the
 deployment date, not immutable configuration defaults. No passwords or token
 secrets belong here.
 
@@ -89,10 +89,17 @@ job covers their guests. Do not remove old NAS archives during recovery.
 
 ### HA-EG VM 102 and HA-UG VM 106
 
-Initial manual PBS seeds were started one at a time after the BrainCloud
-schedules were paused. Check the live PVE task and PBS datastore before marking
-either complete. Verify each resulting PBS snapshot and record the final task
-status here. Do not start UG's seed while EG's seed is active.
+Both initial seeds completed sequentially, with no overlapping `vzdump` task.
+The PVE tasks ended `OK`, and both snapshots were present in datastore
+`pbs-dt` at the follow-up check:
+
+| VM | PVE task | Snapshot | Result |
+| --- | --- | --- | --- |
+| 102 `haos-eg` | `UPID:proxmox-eg:003D223E:02BBD837:6ADA6531:vzdump:102:root@pam:` | `pbs-dt:backup/vm/102/2026-10-22T19:34:09Z` | PVE task `OK`; separate PBS Verify pending |
+| 106 `haos-ug` | `UPID:proxmox-ug:00317C38:02C3D96A:6ADA8572:vzdump:106:root@pam:` | `pbs-dt:backup/vm/106/2026-10-22T21:51:46Z` | PVE task `OK` at 2026-10-23 02:08 CEST; separate PBS Verify pending |
+
+The UG task log reported that server-side backup validation completed and the
+job finished successfully. This is not recorded as a separate PBS Verify task.
 
 ## Operator checks
 
@@ -116,7 +123,8 @@ After each backup:
 
 ## Remaining work and safety gates
 
-- [ ] Finish and verify manual initial seeds for VM 102 and VM 106.
+- [ ] Run a separate PBS Verify for the VM 102 and VM 106 snapshots; require
+      `TASK OK` and zero errors, then record the task results above.
 - [ ] Inspect the next scheduled `haos-pbs-dt` run and confirm retention keeps
       seven usable snapshots for each HA VM.
 - [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS

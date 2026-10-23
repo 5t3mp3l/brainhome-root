@@ -42,11 +42,13 @@ coverage for those guests has been decided and tested.
   `TASK OK`, zero errors. A restore to VM190 on DT-local ZFS completed `OK`.
   VM190 has a unique MAC, `onboot=0`, and remains stopped. Do not attach it to
   the production network without isolating its IP and identity first.
-- **HA-EG seed, VM102:** manual transfer to PBS was in progress sequentially as
-  of the rollout; verify its final task state and PBS archive before marking
-  complete.
-- **HA-UG seed, VM106:** run only after EG completes; verify its task and
-  archive separately.
+- **HA-EG seed, VM102:** PVE task completed `OK`; snapshot
+  `pbs-dt:backup/vm/102/2026-10-22T19:34:09Z` is present on PBS. A separate PBS
+  Verify task for this snapshot remains to be run.
+- **HA-UG seed, VM106:** started after EG completed; PVE task completed `OK`
+  at 2026-10-23 02:08 CEST; snapshot
+  `pbs-dt:backup/vm/106/2026-10-22T21:51:46Z` is present on PBS. A separate PBS
+  Verify task for this snapshot remains to be run.
 - **Automatic job:** enabled for the three HA VMs; first scheduled run is
   2026-10-23 at 12:00 CEST.
 - **NAS jobs:** disabled, not deleted; re-enable only after NAS health is

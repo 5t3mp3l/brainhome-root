@@ -1,0 +1,19 @@
+# Path manifest schema v1 for Proxmox Backup Server on VM 118.
+
+schema = 1
+
+[module]
+name = "pbs-dt"
+repository_root = "."
+
+[placement]
+node = "proxmox-dt"
+vm_id = 118
+live_name = "pbs-dt"
+address = "192.168.188.37"
+service_type = "proxmox-backup-server"
+
+[storage]
+pve_storage_id = "pbs-dt"
+datastore = "pbs-dt"
+mount = "/mnt/datastore/pbs-dt"

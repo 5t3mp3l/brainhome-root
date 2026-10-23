@@ -39,10 +39,12 @@ Hardwaretausch erzeugt kuenftig ein neues Asset; ein Node-Umzug nicht.
 
 ## Verifizierter Cluster
 
-`brainhome`: fuenf Nodes online, fuenf Stimmen, Quorum drei, Transport knet. 25
-Gaeste: 16 VMs und neun LXCs; 22 running, drei stopped. Die deklarierte
-Platzierung aller 25 Gaeste und alle fuenf Management-IPs passen zum
-Live-Bestand. IPs der Gaeste stammen aus Manifesten, nicht aus einem Netzscan.
+`brainhome`: fuenf Nodes online, fuenf Stimmen, Quorum drei, Transport knet. Am
+21.10.2026 waren 25 Gaeste (16 VMs, neun LXCs) erfasst; die damalige
+Platzierung und fuenf Management-IPs passten zum Live-Bestand. Eine erneute
+Live-Abfrage am 23.10.2026 ergab 27 Gaeste (18 VMs, neun LXCs), davon 21 running
+und sechs stopped. Darin enthalten ist der temporaere Restore-Test VM190. IPs
+der Gaeste stammen aus Manifesten, nicht aus einem Netzscan.
 
 | Node       | Management-IP   | CPU live                          | RAM nutzbar | RAM benutzt | PVE    |
 | ---------- | --------------- | --------------------------------- | ----------- | ----------- | ------ |
@@ -64,18 +66,42 @@ Nicht ungeprueft als M920q/Tiny oder T-CPU klassifizieren.
 | OG   | 103 haos-og, 109 openwrt-og                                                                       | 111 pihole-og, 120 caddy-og                              |
 | UG   | 106 haos-ug, 115 haos-ga, 119 openwrt-ug, 219 grafana                                             | 100 pihole, 110 caddy, 116 brainhome-prod, 130 pxe-stack |
 | WS   | 101 haos, 113 ubuntu-pc, 220 windows-stefan (gestoppt)                                            | 112 brainhome-dev (gestoppt)                             |
-| DT   | 104 vaultwarden, 105 stalwart-mail, 107 idp-keycloak, 121 nextcloud-core, 180 coral-ai (gestoppt) | keine                                                    |
+| DT   | 104 Vaultwarden, 105 Stalwart, 107 Keycloak, 118 PBS, 121 Nextcloud, 180 Coral (gestoppt) | keine |
 
 Der alte Host `.254` ist kein aktuelles Mitglied. Die im Maerz geplanten vier
 neuen UG-Tinys sind kein Abbild dieses Bestands. WS ist bereits Ryzen, nicht FX.
 
+VM118 `pbs-dt` laeuft auf `proxmox-dt`; das Gastmanifest ist
+`proxmox-dt/vms/pbs-dt/paths.toml`. Der gestoppte Restore-Test VM190 ist
+temporaer und kein Produktionsgast.
+
+## PBS- und Backup-Nachtrag 2026-10-23
+
+- PBS 4.2.0 laeuft als VM118 auf `proxmox-dt`; der QEMU-Gastagent ist aktiv.
+- Das Datastore `pbs-dt` liegt auf DT-lokalem ZFS. Es ist ein vom BrainCloud-NAS
+   unabhaengiges Backup-Ziel, aber kein zweiter physischer oder externer Host.
+- HA-VMs 102, 103 und 106 liegen weiterhin auf dem BrainCloud-NFS
+   `shared-storage`; ihre Sicherungen lesen deshalb weiterhin von diesem NAS.
+- Initiale PBS-Backups und PBS Verify sind fuer EG, OG und UG erfolgreich. Der
+   Restore-Test von OG nach VM190 ist abgeschlossen; VM190 bleibt gestoppt und
+   `onboot=0`.
+- Die erste taegliche PVE-Runde schrieb alle drei Snapshots, meldete aber
+   `job errors`, weil dem privilege-separated PBS-Token `Datastore.Prune` fehlte.
+   User und Token haben nun `DatastorePowerUser` nur auf `/datastore/pbs-dt`,
+   ohne `Datastore.Modify`. Ein einzelner UG-Test mit `keep-last=7` endete `OK`
+   und entfernte null Backups; die naechste taegliche Runde muss die Korrektur
+   fuer alle drei Gaeste bestaetigen.
+- Die beiden BrainCloud-NFS-Backupjobs sind deaktiviert, nicht geloescht. Sie
+   deckten auch Nicht-HA-Gaeste ab; fuer diese ist noch keine PBS-Ersatzabdeckung
+   eingerichtet.
+
 ## Risiken nach Prioritaet
 
-1. **Wiederherstellbarkeit vor Ausbau.** In den beiden aktivierten Proxmox-
-   Backup-Jobs fehlen 101, 102, 103, 104, 105, 106, 115, 180 und 220. Besonders
-   Vaultwarden und Mail sowie alle fuenf HAOS-Instanzen pruefen. Separate
-   HA-/Applikationsbackups wurden nicht untersucht. Konfigurierte Jobs beweisen
-   weder erfolgreiche Backups noch eine gelungene Wiederherstellung.
+1. **Wiederherstellbarkeit vor Ausbau.** Die beiden alten NFS-Jobs sind
+   deaktiviert; PBS deckt derzeit nur HA-VMs 102, 103 und 106 ab. Die pausierten
+   NFS-Jobs enthielten auch Nicht-HA-Gaeste, fuer die noch keine automatisierte
+   Ersatzabdeckung besteht. Separate HA-/Applikationsbackups sind nicht
+   bewertet.
 2. **NAS und gemeinsame Backup-Fehlerdomaene.** `backup-daily`,
    `backup-monthly` und `shared-storage` verweisen auf dasselbe BrainCloud-NAS
    `.42`; beide RAID1-Arrays liefen laut Betreiberkonsole nur mit einem
@@ -84,8 +110,9 @@ neuen UG-Tinys sind kein Abbild dieses Bestands. WS ist bereits Ryzen, nicht FX.
    eingebaut; My-Cloud-Modell und Herstellerkompatibilitaet vor Einbau klaeren.
    Kauf/Rebuild ersetzt keine unabhaengige Datensicherung. Rund 3,50 TB von
    3,93 TB belegt, etwa 89 %; Storage-Anzeigen nicht addieren.
-   `backup-monthly` laeuft sonntags, nicht monatlich. Kein PBS registriert.
-   Unabhaengiges/offline Ziel und Restore-Tests priorisieren.
+   `backup-monthly` laeuft sonntags, nicht monatlich. PBS liegt inzwischen auf
+   DT-lokalem Storage; die HA-Quellplatten bleiben jedoch auf dem NAS. Ein
+   unabhaengiges/offline Ziel und weitere Restore-Tests bleiben erforderlich.
 3. **HA ist selektiv.** Nur VM102, VM103 und VM106 sind HA-verwaltet. Es gibt
    einen konfigurierten Replikationsjob 102 von EG nach OG. Keine Aussage ueber
    dessen letzten Erfolg. Storage-Erreichbarkeit, CPU-Modell, Passthrough und

@@ -128,6 +128,8 @@ proxmox-dt/vms/*
 !proxmox-dt/vms/nextcloud/paths.toml
 !proxmox-dt/vms/idp-keycloak/
 !proxmox-dt/vms/idp-keycloak/paths.toml
+!proxmox-dt/vms/pbs-dt/
+!proxmox-dt/vms/pbs-dt/paths.toml
 !proxmox-dt/vms/coral-ai/
 !proxmox-dt/vms/coral-ai/paths.toml
 !proxmox-dt/vms/coral-ai/.gitkeep

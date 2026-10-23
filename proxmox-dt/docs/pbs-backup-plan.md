@@ -29,8 +29,9 @@ whether to restore the NAS schedules or migrate their remaining guests to PBS.
 | Filesystem / mount | ext4 on PBS `/dev/sdb1`, mounted at `/mnt/datastore/pbs-dt` |
 | PBS datastore | `pbs-dt`; around 503 GiB formatted, 478 GiB free immediately after creation |
 | PBS TLS fingerprint | `95:29:F0:21:CE:82:E2:BC:63:8A:16:D8:C8:02:88:7A:95:43:62:96:E5:70:8D:7B:CF:1B:6A:15:77:89:9E:38` |
-| PBS auth identity | `pve-backup@pbs!pve-cluster`; dedicated, limited to `DatastoreBackup` on `/datastore/pbs-dt` |
+| PBS auth identity | `pve-backup@pbs!pve-cluster`; user and token have `DatastorePowerUser` only on `/datastore/pbs-dt` for backup plus prune; no `Datastore.Modify` |
 | PVE storage ID | `pbs-dt`; PBS API verified reachable from EG, OG, UG and WS nodes |
+| Guest agent | `qemu-guest-agent` 1:10.0.13+ds-0+deb13u1 active; PVE agent API verified; SysV boot links present for runlevels 2-5; no VM restart performed |
 
 The `tank` ZFS pool was `ONLINE` with no known data errors when checked. It was
 a three-device RAIDZ1. PBS is a VM on the same DT host, so this datastore is
@@ -51,9 +52,17 @@ copy. A future independent/off-site copy and restore plan are still required.
 | Bandwidth limit | 4096 KiB/s (4 MiB/s) |
 | Retention | Keep last 7; pruning enabled |
 
-The job was enabled on 2026-10-22. Its first scheduled run is 2026-10-23 at
-12:00 CEST. Manual initial seeds were being run serially because the three HA
-VM disks are still on the NAS-backed NFS `shared-storage`.
+The job was enabled on 2026-10-22. Manual initial seeds were run serially
+because the three HA VM disks are still on the NAS-backed NFS `shared-storage`.
+The first scheduled run on 2026-10-23 created snapshots for all three VMs, but
+PVE reported `job errors` because retention pruning was denied: the token lacked
+`Datastore.Prune`. Since the token uses privilege separation, adding the role
+only to the token was insufficient; the matching base-user ACL was also added.
+Both user and token now have `DatastorePowerUser` only on `/datastore/pbs-dt`.
+A single-VM UG test then completed with PVE task `OK`, `keep-last=7`, and
+`pruned 0 backup(s)`. PVE task:
+`UPID:proxmox-ug:0036CC9A:030813FB:6ADB341D:vzdump:106:root@pam:`. Snapshot:
+`pbs-dt:backup/vm/106/2026-10-23T10:17:01Z`.
 
 ### BrainCloud/NFS jobs
 
@@ -95,11 +104,11 @@ The PVE tasks ended `OK`, and both snapshots were present in datastore
 
 | VM | PVE task | Snapshot | Result |
 | --- | --- | --- | --- |
-| 102 `haos-eg` | `UPID:proxmox-eg:003D223E:02BBD837:6ADA6531:vzdump:102:root@pam:` | `pbs-dt:backup/vm/102/2026-10-22T19:34:09Z` | PVE task `OK`; separate PBS Verify pending |
-| 106 `haos-ug` | `UPID:proxmox-ug:00317C38:02C3D96A:6ADA8572:vzdump:106:root@pam:` | `pbs-dt:backup/vm/106/2026-10-22T21:51:46Z` | PVE task `OK` at 2026-10-23 02:08 CEST; separate PBS Verify pending |
+| 102 `haos-eg` | `UPID:proxmox-eg:003D223E:02BBD837:6ADA6531:vzdump:102:root@pam:` | `pbs-dt:backup/vm/102/2026-10-22T19:34:09Z` | PVE task `OK`; PBS Verify `TASK OK`, 100%, zero errors |
+| 106 `haos-ug` | `UPID:proxmox-ug:00317C38:02C3D96A:6ADA8572:vzdump:106:root@pam:` | `pbs-dt:backup/vm/106/2026-10-22T21:51:46Z` | PVE task `OK` at 2026-10-23 02:08 CEST; PBS Verify `TASK OK`, 100%, zero errors |
 
-The UG task log reported that server-side backup validation completed and the
-job finished successfully. This is not recorded as a separate PBS Verify task.
+The UG task log also reported successful server-side backup validation before
+the separate PBS Verify task completed.
 
 ## Operator checks
 
@@ -123,10 +132,8 @@ After each backup:
 
 ## Remaining work and safety gates
 
-- [ ] Run a separate PBS Verify for the VM 102 and VM 106 snapshots; require
-      `TASK OK` and zero errors, then record the task results above.
-- [ ] Inspect the next scheduled `haos-pbs-dt` run and confirm retention keeps
-      seven usable snapshots for each HA VM.
+- [ ] Inspect the next scheduled `haos-pbs-dt` run and verify seven-snapshot
+      retention for all three HA VMs.
 - [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS
       coverage; create and test those jobs before re-enabling or deleting the
       old schedules.

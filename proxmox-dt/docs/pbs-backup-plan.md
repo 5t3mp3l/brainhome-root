@@ -13,7 +13,6 @@ does not remove the NAS dependency of guests whose source disks still live on
 `shared-storage`.
 
 The rollout is staged: retain existing archives and job definitions, seed the
-The rollout is staged: retain existing archives and job definitions, seed the
 PBS-covered HA VMs, verify the archives, and test restore before deciding
 whether to restore the NAS schedules or migrate their remaining guests to PBS.
 
@@ -30,9 +29,9 @@ Proxmox HA registration does not provide backup coverage for 101 or 115.
 | PBS address | `192.168.188.37` (currently obtained by DHCP; reserve this address before relying on long-term schedules) |
 | VM resources | 4 vCPU, 6 GiB RAM, ballooning disabled; `onboot=1`, startup order 99 |
 | OS disk | 32 GiB on DT `local-lvm` |
-| Datastore disk | 512 GiB virtual disk on DT `tank-zfs`, excluded from backup of PBS VM itself |
-| Filesystem / mount | ext4 on PBS `/dev/sdb1`, mounted at `/mnt/datastore/pbs-dt` |
-| PBS datastore | `pbs-dt`; around 503 GiB formatted, 478 GiB free immediately after creation |
+| Datastore disk | 1 TiB virtual disk on DT `tank-zfs`, grown online from 512 GiB on 2026-10-26; excluded from backup of PBS VM itself |
+| Filesystem / mount | ext4 on PBS `/dev/sdb1`, mounted at `/mnt/datastore/pbs-dt`; partition and filesystem grown online |
+| PBS datastore | `pbs-dt`; about 1 TiB total, about 931 GiB free after expansion |
 | PBS TLS fingerprint | `95:29:F0:21:CE:82:E2:BC:63:8A:16:D8:C8:02:88:7A:95:43:62:96:E5:70:8D:7B:CF:1B:6A:15:77:89:9E:38` |
 | PBS auth identity | `pve-backup@pbs!pve-cluster`; user and token have `DatastorePowerUser` only on `/datastore/pbs-dt` for backup plus prune; no `Datastore.Modify` |
 | PVE storage ID | `pbs-dt`; PBS API verified reachable from EG, OG, UG and WS nodes |
@@ -58,7 +57,7 @@ copy. A future independent/off-site copy and restore plan are still required.
 | Retention | Keep last 7; pruning enabled |
 
 The job was enabled on 2026-10-22 and expanded on 2026-10-26 to include all five
-PVE-HA-managed Home Assistant VMs. The initial PBS seeds and Verify results are
+PVE-HA-managed Home Assistant VMs. Initial PBS seeds and Verify results are
 complete for 102, 103, and 106. VM101 and VM115 still need their first PBS
 snapshots; all five source disks remain on the NAS-backed NFS `shared-storage`.
 The first scheduled run on 2026-10-23 created snapshots for all three VMs, but
@@ -70,6 +69,33 @@ A single-VM UG test then completed with PVE task `OK`, `keep-last=7`, and
 `pruned 0 backup(s)`. PVE task:
 `UPID:proxmox-ug:0036CC9A:030813FB:6ADB341D:vzdump:106:root@pam:`. Snapshot:
 `pbs-dt:backup/vm/106/2026-10-23T10:17:01Z`.
+
+### Other active VM/CT job
+
+| Setting | Value |
+| --- | --- |
+| Job ID | `active-pve-pbs-dt` |
+| Schedule | Daily, `01:00` local time |
+| Guests | 100, 107, 108, 109, 110, 111, 113, 114, 117, 118, 119, 120, 121, 130, 219 |
+| Destination | `pbs-dt` |
+| Mode / compression | Snapshot / Zstandard |
+| Bandwidth limit | 2048 KiB/s (2 MiB/s) |
+| Retention | Keep last 7; pruning enabled |
+| Notes | `{{guestname}} - PBS DT` |
+
+The job covers the other 14 active guests plus PBS VM118. VM118's datastore
+disk `scsi1` is marked `backup=0`, so only its 32-GiB OS disk is in the archive;
+this self-hosted PBS copy is not an independent PBS recovery path.
+
+A test backup for VM108 completed PVE task `OK` on 2026-10-26 using the same
+2-MiB/s limit and `keep-last=7`. Snapshot
+`pbs-dt:backup/vm/108/2026-10-26T22:06:30Z` has notes `openwrt-eg - PBS DT`;
+its PBS Verify state is still `None`.
+
+Proxmox CT130 has host bind mount `mp0=/home/pxe-boot` (about 1.6 GiB). Standard
+LXC `vzdump` backs up CT130's rootfs but not this host bind mount; a separate
+PBS host-level backup for that path is still required for full CT130 data
+coverage.
 
 ### BrainCloud/NFS jobs
 
@@ -139,11 +165,9 @@ After each backup:
 
 ## Remaining work and safety gates
 
-- [ ] Confirm the first PBS backups for VM101 and VM115, then verify the next
-      scheduled run and seven-snapshot retention for all five HA VMs.
-- [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS
-      coverage; create and test those jobs before re-enabling or deleting the
-      old schedules.
+- [ ] Confirm first PBS baselines for VM101 and VM115 and the first
+      `active-pve-pbs-dt` run; verify both jobs and seven-snapshot retention.
+- [ ] Add a host-level PBS backup for CT130's `/home/pxe-boot` bind mount.
 - [ ] Reserve PBS address `192.168.188.37` in DHCP/DNS and verify PVE TLS
       fingerprint after any certificate replacement.
 - [ ] Plan a second independent/off-site copy. DT-local PBS protects against

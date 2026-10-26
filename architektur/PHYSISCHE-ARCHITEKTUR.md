@@ -99,6 +99,15 @@ temporaer und kein Produktionsgast.
    PBS-Job umfasst jetzt alle fuenf. Initiale PBS-Snapshots sind fuer 101 und
    115 noch ausstehend; ihre Gastplatten liegen wie die der anderen HAOS-VMs auf
    dem NAS-NFS `shared-storage`.
+- Ein zweiter PBS-PVE-Job `active-pve-pbs-dt` ist taeglich um 01:00 fuer die
+   uebrigen 14 aktiven Gaeste plus PBS-VM118 eingerichtet, mit 2 MiB/s und
+   `keep-last=7`. Fuer PBS-VM118 wird nur die Systemdisk gesichert; die
+   Datastore-Disk ist `backup=0`. Zusammen decken die beiden Jobs alle 20
+   laufenden VMs/CTs ab; der erste Gesamtbaseline-Lauf steht noch aus.
+- Ein Testlauf fuer VM108 endete am 26.10. mit PVE `OK`; Snapshot und Notes
+   sind auf PBS vorhanden. Ein separater PBS Verify fuer diesen Test steht aus.
+- CT130s Host-Bind-Mount `/home/pxe-boot` ist nicht Teil des normalen
+   Container-Backups; ein separater PBS-Hostbackup dafuer steht noch aus.
 - Am 26.10.2026 wurde der irrefuehrende PVE-Storage-ID `hdd-storage` durch
    `local-dir` ersetzt. Es gab keine VM-/CT-Referenzen, Backupjobs oder
    gespeicherten Volumes darunter. Beide IDs zeigten auf `/mnt/storage`; auf
@@ -112,10 +121,11 @@ temporaer und kein Produktionsgast.
 ## Risiken nach Prioritaet
 
 1. **Wiederherstellbarkeit vor Ausbau.** Die beiden alten NFS-Jobs sind
-   deaktiviert; der PBS-Job umfasst alle fuenf PVE-HA-VMs, aber erste PBS-
-   Snapshots fuer 101 und 115 fehlen noch. Die pausierten NFS-Jobs enthielten
-   auch Nicht-HA-Gaeste, fuer die noch keine automatisierte Ersatzabdeckung
-   besteht. Separate HA-/Applikationsbackups sind nicht bewertet.
+   deaktiviert. PBS-Jobs sind fuer alle laufenden PVE-Gaeste eingerichtet;
+   erste PBS-Baselines fuer VM101/115 und den erweiterten aktiven Gastjob stehen
+   noch aus. CT130s Bind-Mount `/home/pxe-boot` ist gesondert zu sichern. Die
+   pausierten NFS-Jobs enthielten auch gestoppte/Nicht-HA-Gaeste; diese sind
+   nicht automatisch durch die aktiven PBS-Jobs abgedeckt.
 2. **NAS und gemeinsame Backup-Fehlerdomaene.** `backup-daily`,
    `backup-monthly` und `shared-storage` verweisen auf dasselbe BrainCloud-NAS
    `.42`; beide RAID1-Arrays liefen laut Betreiberkonsole nur mit einem

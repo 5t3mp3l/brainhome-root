@@ -75,13 +75,12 @@ VM118 `pbs-dt` laeuft auf `proxmox-dt`; das Gastmanifest ist
 `proxmox-dt/vms/pbs-dt/paths.toml`. Der gestoppte Restore-Test VM190 ist
 temporaer und kein Produktionsgast.
 
-## PBS- und Backup-Nachtrag 2026-10-23
 ## PBS- und Backup-Nachtraege 2026-10-23 / 2026-10-26
 
 - PBS 4.2.0 laeuft als VM118 auf `proxmox-dt`; der QEMU-Gastagent ist aktiv.
 - Das Datastore `pbs-dt` liegt auf DT-lokalem ZFS. Es ist ein vom BrainCloud-NAS
    unabhaengiges Backup-Ziel, aber kein zweiter physischer oder externer Host.
-- HA-VMs 102, 103 und 106 liegen weiterhin auf dem BrainCloud-NFS
+- HA-VMs 101, 102, 103, 106 und 115 liegen weiterhin auf dem BrainCloud-NFS
    `shared-storage`; ihre Sicherungen lesen deshalb weiterhin von diesem NAS.
 - Initiale PBS-Backups und PBS Verify sind fuer EG, OG und UG erfolgreich. Der
    Restore-Test von OG nach VM190 ist abgeschlossen; VM190 bleibt gestoppt und
@@ -97,16 +96,17 @@ temporaer und kein Produktionsgast.
    eingerichtet.
 - Stand 26.10.2026 sind fuenf HAOS-VMs im PVE-HA-Manager registriert und
    `started`: 101 auf WS sowie 102 auf EG, 103 auf OG, 106 und 115 auf UG. Der
-   PBS-Job sichert weiterhin nur 102, 103 und 106; 101 und 115 sind nicht in
-   diesem Job enthalten.
+   PBS-Job umfasst jetzt alle fuenf. Initiale PBS-Snapshots sind fuer 101 und
+   115 noch ausstehend; ihre Gastplatten liegen wie die der anderen HAOS-VMs auf
+   dem NAS-NFS `shared-storage`.
 
 ## Risiken nach Prioritaet
 
 1. **Wiederherstellbarkeit vor Ausbau.** Die beiden alten NFS-Jobs sind
-   deaktiviert; PBS deckt derzeit nur HA-VMs 102, 103 und 106 ab. Die pausierten
-   NFS-Jobs enthielten auch Nicht-HA-Gaeste, fuer die noch keine automatisierte
-   Ersatzabdeckung besteht. Separate HA-/Applikationsbackups sind nicht
-   bewertet.
+   deaktiviert; der PBS-Job umfasst alle fuenf PVE-HA-VMs, aber erste PBS-
+   Snapshots fuer 101 und 115 fehlen noch. Die pausierten NFS-Jobs enthielten
+   auch Nicht-HA-Gaeste, fuer die noch keine automatisierte Ersatzabdeckung
+   besteht. Separate HA-/Applikationsbackups sind nicht bewertet.
 2. **NAS und gemeinsame Backup-Fehlerdomaene.** `backup-daily`,
    `backup-monthly` und `shared-storage` verweisen auf dasselbe BrainCloud-NAS
    `.42`; beide RAID1-Arrays liefen laut Betreiberkonsole nur mit einem

@@ -51,14 +51,16 @@ copy. A future independent/off-site copy and restore plan are still required.
 | --- | --- |
 | Job ID | `haos-pbs-dt` |
 | Schedule | Daily, `12:00` local time |
-| Guests | VM 102 `haos-eg`, VM 103 `haos-og`, VM 106 `haos-ug` |
+| Guests | VM 101 `haos`, VM 102 `haos-eg`, VM 103 `haos-og`, VM 106 `haos-ug`, VM 115 `haos-ga` |
 | Destination | `pbs-dt` |
 | Mode / compression | Snapshot / Zstandard |
 | Bandwidth limit | 4096 KiB/s (4 MiB/s) |
 | Retention | Keep last 7; pruning enabled |
 
-The job was enabled on 2026-10-22. Manual initial seeds were run serially
-because the three HA VM disks are still on the NAS-backed NFS `shared-storage`.
+The job was enabled on 2026-10-22 and expanded on 2026-10-26 to include all five
+PVE-HA-managed Home Assistant VMs. The initial PBS seeds and Verify results are
+complete for 102, 103, and 106. VM101 and VM115 still need their first PBS
+snapshots; all five source disks remain on the NAS-backed NFS `shared-storage`.
 The first scheduled run on 2026-10-23 created snapshots for all three VMs, but
 PVE reported `job errors` because retention pruning was denied: the token lacked
 `Datastore.Prune`. Since the token uses privilege separation, adding the role
@@ -137,10 +139,8 @@ After each backup:
 
 ## Remaining work and safety gates
 
-- [ ] Inspect the next scheduled `haos-pbs-dt` run and verify seven-snapshot
-      retention for all three HA VMs.
-- [ ] Decide whether to add HAOS master VM101 and HAOS-GA VM115 to PBS coverage;
-      they are PVE-HA-managed but not in the current `haos-pbs-dt` job.
+- [ ] Confirm the first PBS backups for VM101 and VM115, then verify the next
+      scheduled run and seven-snapshot retention for all five HA VMs.
 - [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS
       coverage; create and test those jobs before re-enabling or deleting the
       old schedules.

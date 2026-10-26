@@ -1,6 +1,6 @@
 # Proxmox Backup Server Plan and Runbook
 
-Status: 2026-10-23. Live values in this document are observations from the
+Status: 2026-10-26. Live values in this document are observations from the
 deployment date, not immutable configuration defaults. No passwords or token
 secrets belong here.
 
@@ -13,8 +13,13 @@ does not remove the NAS dependency of guests whose source disks still live on
 `shared-storage`.
 
 The rollout is staged: retain existing archives and job definitions, seed the
-three Home Assistant VMs, verify the archives, and test restore before deciding
+The rollout is staged: retain existing archives and job definitions, seed the
+PBS-covered HA VMs, verify the archives, and test restore before deciding
 whether to restore the NAS schedules or migrate their remaining guests to PBS.
+
+As of 2026-10-26, five Home Assistant VMs (101, 102, 103, 106, 115) are
+registered with Proxmox HA. The current PBS job covers only 102, 103, and 106;
+Proxmox HA registration does not provide backup coverage for 101 or 115.
 
 ## PBS deployment
 
@@ -134,6 +139,8 @@ After each backup:
 
 - [ ] Inspect the next scheduled `haos-pbs-dt` run and verify seven-snapshot
       retention for all three HA VMs.
+- [ ] Decide whether to add HAOS master VM101 and HAOS-GA VM115 to PBS coverage;
+      they are PVE-HA-managed but not in the current `haos-pbs-dt` job.
 - [ ] Decide which non-HA VMs/CTs from the disabled NFS jobs also need PBS
       coverage; create and test those jobs before re-enabling or deleting the
       old schedules.

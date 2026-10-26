@@ -76,6 +76,7 @@ VM118 `pbs-dt` laeuft auf `proxmox-dt`; das Gastmanifest ist
 temporaer und kein Produktionsgast.
 
 ## PBS- und Backup-Nachtrag 2026-10-23
+## PBS- und Backup-Nachtraege 2026-10-23 / 2026-10-26
 
 - PBS 4.2.0 laeuft als VM118 auf `proxmox-dt`; der QEMU-Gastagent ist aktiv.
 - Das Datastore `pbs-dt` liegt auf DT-lokalem ZFS. Es ist ein vom BrainCloud-NAS
@@ -94,6 +95,10 @@ temporaer und kein Produktionsgast.
 - Die beiden BrainCloud-NFS-Backupjobs sind deaktiviert, nicht geloescht. Sie
    deckten auch Nicht-HA-Gaeste ab; fuer diese ist noch keine PBS-Ersatzabdeckung
    eingerichtet.
+- Stand 26.10.2026 sind fuenf HAOS-VMs im PVE-HA-Manager registriert und
+   `started`: 101 auf WS sowie 102 auf EG, 103 auf OG, 106 und 115 auf UG. Der
+   PBS-Job sichert weiterhin nur 102, 103 und 106; 101 und 115 sind nicht in
+   diesem Job enthalten.
 
 ## Risiken nach Prioritaet
 
@@ -113,11 +118,12 @@ temporaer und kein Produktionsgast.
    `backup-monthly` laeuft sonntags, nicht monatlich. PBS liegt inzwischen auf
    DT-lokalem Storage; die HA-Quellplatten bleiben jedoch auf dem NAS. Ein
    unabhaengiges/offline Ziel und weitere Restore-Tests bleiben erforderlich.
-3. **HA ist selektiv.** Nur VM102, VM103 und VM106 sind HA-verwaltet. Es gibt
-   einen konfigurierten Replikationsjob 102 von EG nach OG. Keine Aussage ueber
-   dessen letzten Erfolg. Storage-Erreichbarkeit, CPU-Modell, Passthrough und
-   Netzabhaengigkeiten pro Gast vor Failover testen. Corosync-Quorum bedeutet
-   weder Dienst-HA noch Datenredundanz.
+3. **HA ist selektiv.** VM101, VM102, VM103, VM106 und VM115 sind PVE-HA-
+   verwaltet. Der konfigurierte Replikationsjob deckt nur VM102 von EG nach OG
+   ab; HA-Ressourcenstatus ist keine Datenreplikation oder Backup-Abdeckung.
+   Storage-Erreichbarkeit, CPU-Modell, Passthrough und Netzabhaengigkeiten pro
+   Gast vor Failover testen. Corosync-Quorum bedeutet weder Dienst-HA noch
+   Datenredundanz.
 4. **Kapazitaet ungleich verteilt.** Erst WS-Speicherdruck messen und DT-RAM
    planen. EG/OG haben Reserve, aber diese nicht durch beliebige Verschiebungen
    kritischer Infrastruktur aufbrauchen. Intel-/AMD-Mischbetrieb und lokale

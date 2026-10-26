@@ -99,6 +99,15 @@ temporaer und kein Produktionsgast.
    PBS-Job umfasst jetzt alle fuenf. Initiale PBS-Snapshots sind fuer 101 und
    115 noch ausstehend; ihre Gastplatten liegen wie die der anderen HAOS-VMs auf
    dem NAS-NFS `shared-storage`.
+- Am 26.10.2026 wurde der irrefuehrende PVE-Storage-ID `hdd-storage` durch
+   `local-dir` ersetzt. Es gab keine VM-/CT-Referenzen, Backupjobs oder
+   gespeicherten Volumes darunter. Beide IDs zeigten auf `/mnt/storage`; auf
+   EG/OG/UG/WS liegt dieser Pfad laut `findmnt` auf `pve-root`, und auf DT
+   entsprachen Kapazitaet und Belegung dem Storage `local`. Es wurden keine
+   Dateien oder VM-Platten verschoben oder geloescht.
+- `tank-zfs` bleibt ein DT-lokaler ZFS-Pool und ist kein gemeinsamer Storage fuer
+   alle Cluster-VMs. Auf UG ist zusaetzlich `/dev/sdb` (931.5 GiB, ext4) ohne
+   Mountpoint sichtbar; er ist noch keinem PVE-Storage zugeordnet.
 
 ## Risiken nach Prioritaet
 
